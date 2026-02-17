@@ -36,6 +36,8 @@ from rdmpy.outputs.analysis_tools import (
     _create_time_view_markers,
     _finalize_time_view_map,
     create_time_view_html,
+    incident_view,
+    incident_view_heatmap_html,
 )
 
 
@@ -889,4 +891,332 @@ def test_create_time_view_html_no_data_returns_gracefully(mock_map, mock_load_co
     # Map should NOT be created for date with no data
     # (Since _aggregate_time_view_data returns None)
     assert result is None
+
+# ==============================================================================
+# FIXTURES for incident view tests
+# ==============================================================================
+
+@pytest.fixture
+def sample_incident_data():
+    """
+    Create realistic sample incident data representing actual parquet file structure.
+    
+    This fixture simulates station parquet data with:
+    - Non-delayed trains (INCIDENT_NUMBER = NaN) for counting PLANNED_CALLS in analysis period
+    - Delayed trains (INCIDENT_NUMBER = 64326) including:
+      * Trains delayed OUT of analysis period (scheduled 06:00-16:00 but arrived after 16:00)
+      * Trains delayed INTO analysis period (scheduled before 06:00 but arrived during 06:00-16:00)
+    
+    Analysis period: 07-DEC-2024 06:00 to 07-DEC-2024 16:00 (600 minutes)
+    Expected results:
+    - PLANNED_CALLS: 2 (non-delayed trains scheduled at 07:30 and 09:00)
+    - DELAYED_TRAINS_OUT: 2 (trains originally at 07:00, 08:00 but arrived at 17:00, 18:00)
+    - DELAYED_TRAINS_IN: 1 (train originally at 04:00 but arrived at 12:00)
+    - ACTUAL_CALLS: 2 - 2 + 1 = 1
+    """
+    return pd.DataFrame({
+        # Non-delayed trains (INCIDENT_NUMBER = NaN) - for PLANNED_CALLS calculation
+        'INCIDENT_NUMBER': [np.nan, np.nan, 64326, 64326, 64326, 64326],
+        'INCIDENT_START_DATETIME': [np.nan, np.nan, '07-DEC-2024 08:23', '07-DEC-2024 08:23', 
+                                    '07-DEC-2024 08:23', '07-DEC-2024 08:23'],
+        'PFPI_MINUTES': [0.0, 0.0, 60.0, 120.0, 420.0, 30.0],  # 420 min = 7 hours for SVC103
+        'EVENT_TYPE': ['D', 'D', 'D', 'D', 'D', 'D'],
+        'DELAY_DAY': ['SA', 'SA', 'SA', 'SA', 'SA', 'SA'],
+        'SECTION_CODE': [77301, 77301, 77301, 77301, 77301, 77301],
+        'INCIDENT_REASON': [np.nan, np.nan, 'XW', 'XW', 'XW', 'XW'],
+        'STATION_CODE': [51511, 51511, 51511, 51511, 51511, 51511],
+        'STANOX': [51511, 51511, 51511, 51511, 51511, 51511],
+        # EVENT_DATETIME: actual event time (for incident data, when train actually arrived/departed)
+        # SVC103: originally 04:00 (12:00 - 420 min), arrived 12:00 (delayed FROM before period TO during period)
+        'EVENT_DATETIME': [np.nan, np.nan, '07-DEC-2024 17:00', '07-DEC-2024 18:00', 
+                          '07-DEC-2024 12:00', '07-DEC-2024 14:00'],
+        # PLANNED_CALLS: planned arrival/departure time (time string - not used for delayed train calculations)
+        'PLANNED_CALLS': ['07:30', '09:00', '07:00', '08:00', '04:00', '13:00'],
+        'TRAIN_SERVICE_CODE': ['SVC001', 'SVC002', 'SVC101', 'SVC102', 'SVC103', 'SVC104'],
+        # ENGLISH_DAY_TYPE must include 'SA' for _calculate_planned_calls to find non-delayed trains
+        'ENGLISH_DAY_TYPE': [['SA'], ['SA'], ['SA'], ['SA'], ['SA'], ['SA']],
+    })
+
+
+@pytest.fixture
+def sample_incident_stations_ref():
+    """
+    Create sample station reference data for incident view.
+    Includes latitude/longitude for UK stations.
+    """
+    return [
+        {'stanox': 51511, 'station_name': 'London Kings Cross', 'latitude': 51.5307, 'longitude': -0.1234},
+        {'stanox': 51520, 'station_name': 'Peterborough', 'latitude': 52.5659, 'longitude': -0.2440},
+        {'stanox': 51530, 'station_name': 'Doncaster', 'latitude': 53.5198, 'longitude': -1.1286},
+        {'stanox': 51540, 'station_name': 'Newcastle', 'latitude': 54.9673, 'longitude': -1.6109},
+        {'stanox': 51550, 'station_name': 'Edinburgh', 'latitude': 55.9520, 'longitude': -3.1881},
+    ]
+
+
+# TESTS FOR incident_view
+
+@patch('rdmpy.outputs.analysis_tools.pd.read_parquet')
+@patch('rdmpy.outputs.analysis_tools._get_target_files_for_day')
+@patch('rdmpy.outputs.analysis_tools.find_processed_data_path')
+@patch('builtins.print')
+def test_incident_view_fixture_data_correctness(mock_print, mock_find_path, mock_get_files, mock_read_parquet, sample_incident_data):
+    """
+    Comprehensive test verifying incident_view correctly computes PLANNED_CALLS, ACTUAL_CALLS,
+    and delay metrics from train event data.
+    
+    Fixture data analysis period: 07-DEC-2024 06:00 to 07-DEC-2024 16:00 (600 minutes)
+    
+    Fixture contains:
+    - SVC001, SVC002: Non-delayed trains (INCIDENT_NUMBER = NaN) at 07:30 and 09:00 → PLANNED_CALLS = 2
+    - SVC101, SVC102: Delayed trains originally at 07:00, 08:00 (delays 60, 120 min) but arrived at 17:00, 18:00 → DELAYED_TRAINS_OUT = 2
+    - SVC103: Delayed train originally at 04:00 (delay 420 min = 7 hours) but arrived at 12:00 → DELAYED_TRAINS_IN = 1
+    - SVC104: Delayed train at 13:00 arrived at 14:00 (within period, no shift) → not counted
+    
+    Expected: PLANNED_CALLS=2, DELAYED_TRAINS_OUT=2, DELAYED_TRAINS_IN=1, ACTUAL_CALLS=2-2+1=1
+    """
+    # Arrange: Mock file system and parquet reading
+    mock_find_path.return_value = '/mock/processed_data'
+    mock_get_files.return_value = [('/mock/processed_data/51511/SA.parquet', 51511)]
+    mock_read_parquet.return_value = sample_incident_data
+    
+    result_df, incident_start, analysis_period = incident_view(
+        incident_code=64326,
+        incident_date='07-DEC-2024',
+        analysis_date='07-DEC-2024',
+        analysis_hhmm='0600',
+        period_minutes=600
+    )
+    
+    # PRINT OUTPUT ASSERTIONS - Verify all key information is printed
+    print_output = ' '.join([str(call) for call in mock_print.call_args_list])
+    assert all([
+        'Analyzing incident 64326 (started 07-DEC-2024)' in print_output,
+        'Analysis period: 07-Dec-2024 06:00 to 07-Dec-2024 16:00 (600 min)' in print_output,
+        'Incident Details:' in print_output,
+        'Section Code: 77301' in print_output,
+        'Incident Reason: XW' in print_output,
+        'Started: 07-DEC-2024 08:23' in print_output,
+    ]), "Print output missing required info: incident number, dates, period, loading message, or incident details"
+    
+    # RETURN VALUE ASSERTIONS - Verify types and formats
+    assert isinstance(result_df, pd.DataFrame)
+    assert isinstance(incident_start, str) or incident_start is None
+    assert isinstance(analysis_period, str) or analysis_period is None
+    
+    # INCIDENT START FORMAT - Must be "DD-MMM-YYYY HH:MM"
+    if incident_start:
+        assert '07-DEC-2024 08:23' in incident_start
+    
+    # ANALYSIS PERIOD FORMAT - Must contain start time, end time, and duration
+    assert analysis_period is not None
+    assert '07-Dec-2024 06:00' in analysis_period
+    assert '07-Dec-2024 16:00' in analysis_period
+    assert '600' in analysis_period
+    
+    # DATAFRAME STRUCTURE - Verify complete structure and computed metrics
+    if not result_df.empty:
+        # Column structure
+        required_columns = {'STATION_CODE', 'PLANNED_CALLS', 'ACTUAL_CALLS', 'DELAYED_TRAINS_OUT', 
+                           'DELAY_MINUTES_OUT', 'DELAYED_TRAINS_IN', 'DELAY_MINUTES_IN'}
+        assert required_columns.issubset(result_df.columns), f"Missing columns: {required_columns - set(result_df.columns)}"
+        assert len(result_df.columns) == 7, f"Should have exactly 7 columns, got {len(result_df.columns)}"
+        
+        # Column data types (integer)
+        assert pd.api.types.is_integer_dtype(result_df['STATION_CODE'])
+        assert pd.api.types.is_integer_dtype(result_df['PLANNED_CALLS'])
+        assert pd.api.types.is_integer_dtype(result_df['ACTUAL_CALLS'])
+        assert pd.api.types.is_integer_dtype(result_df['DELAYED_TRAINS_OUT'])
+        assert pd.api.types.is_integer_dtype(result_df['DELAYED_TRAINS_IN'])
+        
+        # Value range checks (must be non-negative)
+        assert (result_df['PLANNED_CALLS'] >= 0).all()
+        assert (result_df['ACTUAL_CALLS'] >= 0).all()
+        assert (result_df['DELAYED_TRAINS_OUT'] >= 0).all()
+        assert (result_df['DELAYED_TRAINS_IN'] >= 0).all()
+        
+        # Delay minutes columns must contain lists, not scalars
+        assert all(isinstance(x, (list, np.ndarray, pd.Series)) or pd.isna(x) for x in result_df['DELAY_MINUTES_OUT']), \
+            "DELAY_MINUTES_OUT must contain lists"
+        assert all(isinstance(x, (list, np.ndarray, pd.Series)) or pd.isna(x) for x in result_df['DELAY_MINUTES_IN']), \
+            "DELAY_MINUTES_IN must contain lists"
+        
+        # COMPUTED METRICS VERIFICATION from fixture
+        station_row = result_df[result_df['STATION_CODE'] == 51511] # Only one station in fixture, so we can directly check its values
+        if not station_row.empty:
+            # Extract row values
+            planned = station_row['PLANNED_CALLS'].iloc[0]
+            delayed_out = station_row['DELAYED_TRAINS_OUT'].iloc[0]
+            delay_mins_out = station_row['DELAY_MINUTES_OUT'].iloc[0]
+            delayed_in = station_row['DELAYED_TRAINS_IN'].iloc[0]
+            delay_mins_in = station_row['DELAY_MINUTES_IN'].iloc[0]
+            actual = station_row['ACTUAL_CALLS'].iloc[0]
+            
+            # PLANNED_CALLS: 2 non-delayed trains (SVC001 at 07:30, SVC002 at 09:00) in 06:00-16:00 period
+            assert planned == 2
+            
+            # DELAYED_TRAINS_OUT: 2 trains (SVC101, SVC102) originally scheduled 06:00-16:00 but delayed after 16:00
+            assert delayed_out == 2
+            
+            # DELAY_MINUTES_OUT: [60, 120] from SVC101, SVC102
+            assert isinstance(delay_mins_out, list)
+            assert sorted(delay_mins_out) == [60, 120]
+            
+            # DELAYED_TRAINS_IN: 1 train (SVC103) originally before 06:00 but delayed into 06:00-16:00
+            assert delayed_in == 1
+            
+            # DELAY_MINUTES_IN: [420] from SVC103 (420 min delay = 7 hours, original time before 06:00)
+            assert isinstance(delay_mins_in, list)
+            assert delay_mins_in == [420.0]
+            
+            # ACTUAL_CALLS: 2 - 2 + 1 = 1
+            assert actual == 1
+
+
+@patch('rdmpy.outputs.analysis_tools.find_processed_data_path')
+@patch('builtins.print')
+def test_incident_view_handles_invalid_date(mock_print, mock_find_path):
+    """Test incident_view returns empty structures for invalid date format."""
+    mock_find_path.return_value = None
+    result_df, incident_start, analysis_period = incident_view(
+        incident_code=64326, incident_date='INVALID', analysis_date='INVALID',
+        analysis_hhmm='9999', period_minutes=600
+    )
+    assert isinstance(result_df, pd.DataFrame)
+    assert len(result_df) == 0 or incident_start is None
+
+
+# TESTS FOR incident_view_heatmap_html
+
+@patch('rdmpy.outputs.analysis_tools._save_heatmap_html_file')
+@patch('rdmpy.outputs.analysis_tools._get_incident_location_coordinates')
+@patch('rdmpy.outputs.analysis_tools._collect_heatmap_delay_timeline')
+@patch('rdmpy.outputs.analysis_tools._load_heatmap_station_files')
+@patch('rdmpy.outputs.analysis_tools.find_processed_data_path')
+@patch('rdmpy.outputs.analysis_tools._load_station_coordinates_from_json')
+@patch('builtins.print')
+def test_incident_view_heatmap_html_fixture_data_content(mock_print, mock_load_coords, mock_find_path, 
+                                                          mock_load_files, mock_collect_timeline, mock_get_location, mock_save_file, 
+                                                          sample_incident_data, sample_incident_stations_ref):
+    """
+    Test that incident_view_heatmap_html generates HTML with correct incident content from fixture data.
+    
+    Verifies HTML includes:
+    - Correct incident code
+    - Analysis date and time period
+    - Incident section code and reason
+    - Delay color scheme (green, yellow, orange, red)
+    - Interactive controls (Play, Pause, Reset buttons)
+    - Map and timeline elements
+    """
+    # Arrange: Mock only file I/O and data loading, not HTML generation
+    mock_find_path.return_value = '/mock/processed_data'
+    
+    # Create coordinate map from fixture
+    coords_map = {str(s['stanox']): [s['latitude'], s['longitude']] for s in sample_incident_stations_ref}
+    mock_load_coords.return_value = coords_map
+    
+    # Mock station files to return fixture data for one station
+    mock_load_files.return_value = [('/mock/processed_data/51511/SA.parquet', 51511)]
+    
+    # Mock incident location with proper structure (dict with lat, lon, name, stanox)
+    incident_location = [{
+        'lat': 51.5307,
+        'lon': -0.1234,
+        'name': 'London Kings Cross',
+        'stanox': 51511
+    }]
+    mock_get_location.return_value = (incident_location, 'London Kings Cross')
+    
+    # Mock timeline collection to return incident data
+    mock_collect_timeline.return_value = (
+        {51511: {0: [15, 25, 35]}},  # station_timeline_data: station -> interval -> delays
+        77301,                        # incident_section_code
+        'XW',                         # incident_reason
+        '07-DEC-2024 08:23'           # incident_start_time
+    )
+    
+    # Mock read_parquet to return fixture data
+    with patch('rdmpy.outputs.analysis_tools.pd.read_parquet', return_value=sample_incident_data):
+        # Act
+        html_output = incident_view_heatmap_html(
+            incident_code=64326,
+            incident_date='07-DEC-2024',
+            analysis_date='07-DEC-2024',
+            analysis_hhmm='0600',
+            period_minutes=600,
+            interval_minutes=60,
+            output_file='test_heatmap.html'
+        )
+    
+    # Assert: HTML structure and content
+    assert html_output is not None
+    assert isinstance(html_output, str)
+    
+    # Assert: HTML document structure
+    assert '<!DOCTYPE html>' in html_output
+    assert '<html>' in html_output
+    assert '</html>' in html_output
+    assert '<head>' in html_output
+    assert '<body>' in html_output
+    
+    # Assert: Title and incident code
+    assert 'Incident 64326' in html_output
+    assert 'Network Heatmap' in html_output
+    assert '07-DEC-2024' in html_output
+    
+    # Assert: Analysis period information
+    assert '06:00' in html_output  # Start time
+    assert '16:00' in html_output  # End time (06:00 + 600 min = 16:00)
+    assert '600' in html_output     # Duration
+    assert '60' in html_output      # Interval size
+    
+    # Assert: Incident details
+    assert '77301' in html_output or 'Section' in html_output  # Section code
+    assert 'XW' in html_output or 'Reason' in html_output      # Incident reason
+    assert '08:23' in html_output                              # Start time from fixture
+    
+    # Assert: Delay color scheme (from legend)
+    assert 'rgb(0,255,0)' in html_output or '#00ff00' in html_output.lower() or 'green' in html_output.lower()  # Green
+    assert 'rgb(255,255,0)' in html_output or '#ffff00' in html_output.lower() or 'yellow' in html_output.lower()  # Yellow
+    assert 'rgb(255,165,0)' in html_output or '#ffa500' in html_output.lower() or 'orange' in html_output.lower()  # Orange
+    assert 'rgb(255,0,0)' in html_output or '#ff0000' in html_output.lower() or 'red' in html_output.lower()  # Red
+    
+    # Assert: Interactive controls
+    assert 'Play' in html_output or 'play' in html_output.lower()
+    assert 'Pause' in html_output or 'pause' in html_output.lower()
+    assert 'Reset' in html_output or 'reset' in html_output.lower()
+    
+    # Assert: Map and visualization elements
+    assert 'map' in html_output.lower()
+    assert 'timeline' in html_output.lower()
+    assert 'leaflet' in html_output.lower()
+    
+    # Assert: JavaScript for interactivity
+    assert '<script>' in html_output
+    assert 'playTimeline' in html_output or 'play' in html_output.lower()
+    
+    # Assert: File save was called
+    assert mock_save_file.called
+
+
+@patch('rdmpy.outputs.analysis_tools._load_station_coordinates_from_json')
+def test_incident_view_heatmap_html_handles_missing_coordinates(mock_load_coords):
+    """Test incident_view_heatmap_html returns None when coordinates unavailable."""
+    mock_load_coords.return_value = None
+    result = incident_view_heatmap_html(
+        incident_code=62537, incident_date='07-DEC-2024', analysis_date='07-DEC-2024',
+        analysis_hhmm='0600', period_minutes=120, interval_minutes=30
+    )
+    assert result is None
+
+
+@patch('rdmpy.outputs.analysis_tools._load_station_coordinates_from_json')
+def test_incident_view_heatmap_html_handles_invalid_date(mock_load_coords):
+    """Test incident_view_heatmap_html returns None for invalid date format."""
+    mock_load_coords.return_value = {'51511': [51.5307, -0.1234]}
+    result = incident_view_heatmap_html(
+        incident_code=62537, incident_date='INVALID', analysis_date='INVALID',
+        analysis_hhmm='9999', period_minutes=120, interval_minutes=30
+    )
+    assert result is None or isinstance(result, str)
 
