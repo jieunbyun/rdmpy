@@ -4,6 +4,7 @@ import json
 import pickle
 import sys
 import os
+from IPython.display import display
 import pandas as pd
 import copy
 from datetime import datetime, date, timedelta
@@ -2727,7 +2728,7 @@ def map_train_journey_with_incidents(
     
     # Load station reference data
     if stations_ref_path is None:
-        from data.reference import reference_files
+        from demo.data.reference import reference_files
         stations_ref_path = reference_files["all dft categories"]
     
     with open(stations_ref_path, "r") as f:
@@ -2813,7 +2814,7 @@ def train_view_2(all_data, service_stanox, service_code, stations_ref_path=None)
 
     # Load station reference with flexible path
     if stations_ref_path is None:
-        from data.reference import reference_files
+        from demo.data.reference import reference_files
         stations_ref_path = reference_files["all dft categories"]
     
     try:
@@ -2899,7 +2900,7 @@ def plot_reliability_graphs(all_data, service_stanox, service_code, stations_ref
 
     # Load station reference with flexible path
     if stations_ref_path is None:
-        from data.reference import reference_files
+        from demo.data.reference import reference_files
         stations_ref_path = reference_files["all dft categories"]
     
     # try to get station names
@@ -3081,7 +3082,7 @@ def _load_station_coordinates(stations_ref_path=None):
     dict: Mapping of STANOX code (string) to [latitude, longitude]
     """
     import json
-    from data.reference import reference_files
+    from demo.data.reference import reference_files
     
     if stations_ref_path is None:
         stations_ref_path = reference_files["all dft categories"]
