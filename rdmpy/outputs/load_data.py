@@ -17,7 +17,7 @@ def load_processed_data(base_dir: str = "processed_data") -> pd.DataFrame:
 
     parquet_files = list(base_path.glob("*/*.parquet"))
     if not parquet_files:
-        print("⚠️ No parquet files found.")
+        print("No parquet files found.")
         return pd.DataFrame()
 
     dfs = []
@@ -39,9 +39,9 @@ def load_processed_data(base_dir: str = "processed_data") -> pd.DataFrame:
 
     if dfs:
         all_data = pd.concat(dfs, ignore_index=True)
-        print(f"✅ Loaded {len(all_data):,} rows from {len(dfs)} files. Skipped {len(skipped)}.")
+        print(f"Loaded {len(all_data):,} rows from {len(dfs)} files. Skipped {len(skipped)}.")
     else:
         all_data = pd.DataFrame()
-        print("⚠️ No data loaded.")
+        print("No data loaded.")
 
     return all_data
