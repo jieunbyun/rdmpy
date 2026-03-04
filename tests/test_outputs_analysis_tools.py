@@ -1267,6 +1267,7 @@ def _filter_fixture_by_station(file_path, fixture_data):
     except (ValueError, IndexError):
         return fixture_data
 
+# TOREVIEW: non-nested code, now direct definitions inside the test itself
 
 @patch('rdmpy.outputs.analysis_tools._save_heatmap_html_file')
 @patch('rdmpy.outputs.analysis_tools._get_incident_location_coordinates')
@@ -1411,24 +1412,23 @@ def test_incident_view_heatmap_html_timeline_correctness(mock_print, mock_load_c
     
     # Assert: Verify each station has correct aggregated delay in correct time window
     for station_code, expected_delay in expected_delays_by_station.items():
-        assert station_code in actual_station_timeline_data, f"Station {station_code} not in actual_station_timeline_data"
+        assert station_code in actual_station_timeline_data
         
         actual_entries = actual_station_timeline_data[station_code]
-        assert len(actual_entries) == 1, f"Station {station_code} should have 1 entry, got {len(actual_entries)}"
-        
+        assert len(actual_entries) == 1 # One total delay entry per station
+
         actual_time, actual_delay = actual_entries[0]
         expected_time = expected_times_by_station[station_code]
         
         # Verify delay totals are correct
-        assert actual_delay == expected_delay, f"Station {station_code}: expected delay {expected_delay}, got {actual_delay}"
-        assert actual_time == expected_time, f"Station {station_code}: expected time {expected_time}, got {actual_time}"
+        assert actual_delay == expected_delay
 
         # Verify time window is correct (delay mapped to correct interval)
         assert actual_time == expected_time
 
     # Assert: Verify incident 64327 stations are filtered out (not included in results)
     incident_64327_stations = {32534, 33087}
-    assert incident_64327_stations.isdisjoint(actual_station_codes)
+    assert all(station not in actual_station_codes for station in incident_64327_stations)
 
     # Assert: Verify HTML output contains the correct delays for each station
     for station_code, expected_delay in expected_delays_by_station.items():
