@@ -114,6 +114,7 @@ def test_load_stations_k2(mock_stations_data):
     """Test filtering by category C1"""
     mock_json_str = json.dumps(mock_stations_data)
     
+    
     with patch('builtins.open', mock_open(read_data=mock_json_str)):
         with patch('rdmpy.preprocessor.reference_files',
                    {"all dft categories": "mock_path.json"}):
