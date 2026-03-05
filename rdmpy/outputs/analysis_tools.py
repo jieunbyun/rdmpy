@@ -3349,7 +3349,7 @@ def station_view_yearly(station_id, interval_minutes=30):
 
 
 def plot_trains_in_system_vs_delay(station_id, all_data, time_window_minutes=60, num_platforms=12, 
-                                   figsize=(12, 8), max_delay_percentile=98, dwell_time_minutes=5):
+                                   figsize=(12, 8), max_delay_percentile=98, dwell_time_minutes=5, time_range=None):
     """
     Visualize the relationship between normalized trains in system and mean delay per hour.
     
@@ -3385,6 +3385,8 @@ def plot_trains_in_system_vs_delay(station_id, all_data, time_window_minutes=60,
         Percentile to trim extreme values (default: 98)
     dwell_time_minutes : int
         Typical dwell time at station (default: 5 minutes)
+    time_range : tuple or None
+        Optional (start, end) tuple to filter by time range (default: None)
     """
     import matplotlib.pyplot as plt
     import seaborn as sns
@@ -3414,7 +3416,11 @@ def plot_trains_in_system_vs_delay(station_id, all_data, time_window_minutes=60,
         if pd.isna(event_dt_str):
             return None
         try:
-            dt = pd.to_datetime(event_dt_str, format='%d-%b-%Y %H:%M', errors='coerce')
+            # Handle both string and datetime inputs (for compatibility with time_range filtered data)
+            if isinstance(event_dt_str, (pd.Timestamp, datetime)):
+                dt = event_dt_str
+            else:
+                dt = pd.to_datetime(event_dt_str, format='%d-%b-%Y %H:%M', errors='coerce')
             return dt.date() if pd.notna(dt) else None
         except:
             return None
@@ -3435,6 +3441,24 @@ def plot_trains_in_system_vs_delay(station_id, all_data, time_window_minutes=60,
     
     def create_datetime_with_event_dates(row):
         try:
+            # Check if EVENT_DATETIME is a valid datetime (not NaT/None)
+            event_dt_val = row['EVENT_DATETIME']
+            is_valid_datetime = pd.notna(event_dt_val) and isinstance(event_dt_val, (pd.Timestamp, datetime))
+            
+            # First, try to use EVENT_DATETIME directly if it's a valid datetime (from time_range filtering)
+            if is_valid_datetime:
+                event_dt = pd.Timestamp(event_dt_val)
+                # Combine with time from ACTUAL_CALLS or PLANNED_CALLS
+                time_val = row['ACTUAL_CALLS'] if pd.notna(row['ACTUAL_CALLS']) else row['PLANNED_CALLS']
+                if pd.notna(time_val):
+                    time_str = str(int(time_val)).zfill(4)
+                    hour = int(time_str[:2])
+                    minute = int(time_str[2:])
+                    return pd.Timestamp(year=event_dt.year, month=event_dt.month, day=event_dt.day, hour=hour, minute=minute)
+                else:
+                    return event_dt
+            
+            # Fallback: reconstruct from day code and date mapping (for on-time trains with NaT or unfiltered data)
             day_code = row['DAY']
             time_val = row['ACTUAL_CALLS'] if pd.notna(row['ACTUAL_CALLS']) else row['PLANNED_CALLS']
             
@@ -3471,6 +3495,24 @@ def plot_trains_in_system_vs_delay(station_id, all_data, time_window_minutes=60,
     
     # Drop rows with invalid datetimes
     valid_data = all_arrived_data.dropna(subset=['arrival_time', 'departure_time']).copy()
+    
+    # Apply time_range filter if specified (filters by reconstructed arrival_time)
+    if time_range is not None:
+        start, end = _expand_time_range(time_range)
+        print(f"\n[PLOT_TRAINS_IN_SYSTEM] Filtering valid_data by time_range: {start} to {end}", flush=True)
+        print(f"[PLOT_TRAINS_IN_SYSTEM] Before filtering - valid_data rows: {len(valid_data)}", flush=True)
+        
+        # Filter by arrival_time
+        valid_data = valid_data[(valid_data['arrival_time'] >= start) & (valid_data['arrival_time'] <= end)].copy()
+        print(f"[PLOT_TRAINS_IN_SYSTEM] After filtering - valid_data rows: {len(valid_data)}", flush=True)
+    
+    # DIAGNOSTIC OUTPUT
+    print(f"\n[DIAGNOSTIC] plot_trains_in_system_vs_delay for station {station_id}:", flush=True)
+    print(f"  - Input rows: {len(all_arrived_data)}", flush=True)
+    print(f"  - Rows with datetime EVENT_DATETIME: {sum(isinstance(dt, (pd.Timestamp, datetime)) for dt in all_arrived_data['EVENT_DATETIME'])}", flush=True)
+    print(f"  - Valid arrival_times created: {all_arrived_data['arrival_time'].notna().sum()}", flush=True)
+    print(f"  - Valid rows (with arrival & departure): {len(valid_data)}", flush=True)
+    print(flush=True)
     
     if len(valid_data) == 0:
         return None
@@ -3623,7 +3665,7 @@ def plot_trains_in_system_vs_delay(station_id, all_data, time_window_minutes=60,
 
 
 
-def explore_delay_outliers(station_id, all_data, num_platforms=6, dwell_time_minutes=5, figsize=(12, 8)):
+def explore_delay_outliers(station_id, all_data, num_platforms=6, dwell_time_minutes=5, figsize=(12, 8), time_range=None):
     """
     Specialized visualization to explore delay outliers and extreme cases.
     Shows delay percentiles vs system load with binned averages.
@@ -3640,6 +3682,8 @@ def explore_delay_outliers(station_id, all_data, num_platforms=6, dwell_time_min
         Typical dwell time at the station in minutes
     figsize : tuple
         Figure size (width, height)
+    time_range : tuple or None
+        Optional (start, end) tuple to filter by time range (default: None)
     
     Returns:
     --------
@@ -3673,7 +3717,11 @@ def explore_delay_outliers(station_id, all_data, num_platforms=6, dwell_time_min
         if pd.isna(event_dt_str):
             return None
         try:
-            dt = pd.to_datetime(event_dt_str, format='%d-%b-%Y %H:%M', errors='coerce')
+            # Handle both string and datetime inputs (for compatibility with time_range filtered data)
+            if isinstance(event_dt_str, (pd.Timestamp, datetime)):
+                dt = event_dt_str
+            else:
+                dt = pd.to_datetime(event_dt_str, format='%d-%b-%Y %H:%M', errors='coerce')
             return dt.date() if pd.notna(dt) else None
         except:
             return None
@@ -3693,6 +3741,24 @@ def explore_delay_outliers(station_id, all_data, num_platforms=6, dwell_time_min
     
     def create_datetime_with_event_dates(row):
         try:
+            # Check if EVENT_DATETIME is a valid datetime (not NaT)
+            event_dt_val = row['EVENT_DATETIME']
+            is_valid_datetime = pd.notna(event_dt_val) and isinstance(event_dt_val, (pd.Timestamp, datetime))
+            
+            # First, try to use EVENT_DATETIME directly if it's a valid datetime (from time_range filtering)
+            if is_valid_datetime:
+                event_dt = pd.Timestamp(event_dt_val)
+                # Combine with time from ACTUAL_CALLS or PLANNED_CALLS
+                time_val = row['ACTUAL_CALLS'] if pd.notna(row['ACTUAL_CALLS']) else row['PLANNED_CALLS']
+                if pd.notna(time_val):
+                    time_str = str(int(time_val)).zfill(4)
+                    hour = int(time_str[:2])
+                    minute = int(time_str[2:])
+                    return pd.Timestamp(year=event_dt.year, month=event_dt.month, day=event_dt.day, hour=hour, minute=minute)
+                else:
+                    return event_dt
+            
+            # Fallback: reconstruct from day code and date mapping (for on-time trains with NaT or unfiltered data)
             day_code = row['DAY']
             time_val = row['ACTUAL_CALLS'] if pd.notna(row['ACTUAL_CALLS']) else row['PLANNED_CALLS']
             
@@ -3724,6 +3790,24 @@ def explore_delay_outliers(station_id, all_data, num_platforms=6, dwell_time_min
     )
     
     valid_data = all_arrived_data.dropna(subset=['arrival_time', 'departure_time']).copy()
+    
+    # Apply time_range filter if specified (filters by reconstructed arrival_time)
+    if time_range is not None:
+        start, end = _expand_time_range(time_range)
+        print(f"\n[EXPLORE_OUTLIERS] Filtering valid_data by time_range: {start} to {end}", flush=True)
+        print(f"[EXPLORE_OUTLIERS] Before filtering - valid_data rows: {len(valid_data)}", flush=True)
+        
+        # Filter by arrival_time
+        valid_data = valid_data[(valid_data['arrival_time'] >= start) & (valid_data['arrival_time'] <= end)].copy()
+        print(f"[EXPLORE_OUTLIERS] After filtering - valid_data rows: {len(valid_data)}", flush=True)
+    
+    # DIAGNOSTIC OUTPUT
+    print(f"\n[DIAGNOSTIC] explore_delay_outliers for station {station_id}:", flush=True)
+    print(f"  - Input rows: {len(all_arrived_data)}", flush=True)
+    print(f"  - Rows with datetime EVENT_DATETIME: {sum(isinstance(dt, (pd.Timestamp, datetime)) for dt in all_arrived_data['EVENT_DATETIME'])}", flush=True)
+    print(f"  - Valid arrival_times created: {all_arrived_data['arrival_time'].notna().sum()}", flush=True)
+    print(f"  - Valid rows (with arrival & departure): {len(valid_data)}", flush=True)
+    print(flush=True)
     
     if len(valid_data) == 0:
         print("No valid datetime data.")
@@ -3882,7 +3966,7 @@ def explore_delay_outliers(station_id, all_data, num_platforms=6, dwell_time_min
     
     return hourly_stats
 
-def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, max_delay_percentile=98, dwell_time_minutes=5, figsize=(8, 4.7)):
+def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, max_delay_percentile=98, dwell_time_minutes=5, figsize=(8, 4.7), time_range=None):
     """
     Comprehensive merged station performance analysis combining 3 visualization functions.
     Analyzes on-time performance and system load relationships.
@@ -3903,6 +3987,9 @@ def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, 
         Typical dwell time at the station in minutes
     figsize : tuple
         Figure size (width, height) - applied to all plots
+    time_range : tuple or None
+        Optional (start, end) tuple to filter by time range. Will filter valid_data
+        to only include rows where arrival_time falls within this range (default: None)
     
     Returns:
     --------
@@ -3926,14 +4013,38 @@ def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, 
         print("No arrived trains found.")
         return None
     
+    # DIAGNOSTIC: Check PFPI_MINUTES before converting
+    print(f"\n[PFPI DIAGNOSTIC] For station {station_id}:", flush=True)
+    print(f"  - PFPI_MINUTES dtype: {all_arrived_data['PFPI_MINUTES'].dtype}", flush=True)
+    print(f"  - PFPI_MINUTES non-null count: {all_arrived_data['PFPI_MINUTES'].notna().sum()}", flush=True)
+    print(f"  - PFPI_MINUTES null count: {all_arrived_data['PFPI_MINUTES'].isna().sum()}", flush=True)
+    if all_arrived_data['PFPI_MINUTES'].notna().sum() > 0:
+        print(f"  - PFPI_MINUTES min: {pd.to_numeric(all_arrived_data['PFPI_MINUTES'], errors='coerce').min()}", flush=True)
+        print(f"  - PFPI_MINUTES max: {pd.to_numeric(all_arrived_data['PFPI_MINUTES'], errors='coerce').max()}", flush=True)
+        print(f"  - PFPI_MINUTES mean: {pd.to_numeric(all_arrived_data['PFPI_MINUTES'], errors='coerce').mean():.2f}", flush=True)
+        print(f"  - Sample PFPI values: {all_arrived_data['PFPI_MINUTES'].dropna().head(10).tolist()}", flush=True)
+    print(flush=True)
+    
     all_arrived_data['delay_minutes'] = pd.to_numeric(all_arrived_data['PFPI_MINUTES'], errors='coerce').fillna(0)
     all_arrived_data['time_in_system'] = dwell_time_minutes + all_arrived_data['delay_minutes']
+    
+    # DIAGNOSTIC: Check delay_minutes after conversion
+    print(f"[DELAY DIAGNOSTIC] After calculating delay_minutes:", flush=True)
+    print(f"  - delay_minutes non-zero count: {(all_arrived_data['delay_minutes'] > 0).sum()}", flush=True)
+    print(f"  - delay_minutes zero count: {(all_arrived_data['delay_minutes'] == 0).sum()}", flush=True)
+    print(f"  - delay_minutes mean: {all_arrived_data['delay_minutes'].mean():.2f}", flush=True)
+    print(f"  - delay_minutes max: {all_arrived_data['delay_minutes'].max():.2f}", flush=True)
+    print(flush=True)
     
     def parse_event_datetime(event_dt_str):
         if pd.isna(event_dt_str):
             return None
         try:
-            dt = pd.to_datetime(event_dt_str, format='%d-%b-%Y %H:%M', errors='coerce')
+            # Handle both string and datetime inputs (for compatibility with time_range filtered data)
+            if isinstance(event_dt_str, (pd.Timestamp, datetime)):
+                dt = event_dt_str
+            else:
+                dt = pd.to_datetime(event_dt_str, format='%d-%b-%Y %H:%M', errors='coerce')
             return dt.date() if pd.notna(dt) else None
         except:
             return None
@@ -3944,7 +4055,21 @@ def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, 
     day_date_mapping = {}
     for day_code in day_to_weekday.keys():
         day_data = all_arrived_data[all_arrived_data['DAY'] == day_code]
+        # Collect dates from event_date (which works for both delayed and on-time trains when EVENT_DATETIME is valid)
         observed_dates = day_data['event_date'].dropna().unique()
+        
+        # If we have no observed dates (e.g., filtered data with only on-time trains),
+        # extract dates from the available data to ensure on-time trains get reconstructed
+        if len(observed_dates) == 0 and len(day_data) > 0:
+            # Try to extract dates from EVENT_DATETIME if available (from time_range filtering)
+            valid_dt = day_data[day_data['EVENT_DATETIME'].notna()]
+            if len(valid_dt) > 0:
+                try:
+                    extracted_dates = pd.to_datetime(valid_dt['EVENT_DATETIME'], errors='coerce').dt.date
+                    observed_dates = extracted_dates[extracted_dates.notna()].unique()
+                except:
+                    pass
+        
         if len(observed_dates) > 0:
             day_date_mapping[day_code] = sorted(observed_dates)
     
@@ -3952,6 +4077,24 @@ def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, 
     
     def create_datetime_with_event_dates(row):
         try:
+            # Check if EVENT_DATETIME is a valid datetime (not NaT/None)
+            event_dt_val = row['EVENT_DATETIME']
+            is_valid_datetime = pd.notna(event_dt_val) and isinstance(event_dt_val, (pd.Timestamp, datetime))
+            
+            # First, try to use EVENT_DATETIME directly if it's a valid datetime (from time_range filtering)
+            if is_valid_datetime:
+                event_dt = pd.Timestamp(event_dt_val)
+                # Combine with time from ACTUAL_CALLS or PLANNED_CALLS
+                time_val = row['ACTUAL_CALLS'] if pd.notna(row['ACTUAL_CALLS']) else row['PLANNED_CALLS']
+                if pd.notna(time_val):
+                    time_str = str(int(time_val)).zfill(4)
+                    hour = int(time_str[:2])
+                    minute = int(time_str[2:])
+                    return pd.Timestamp(year=event_dt.year, month=event_dt.month, day=event_dt.day, hour=hour, minute=minute)
+                else:
+                    return event_dt
+            
+            # Fallback: reconstruct from day code and date mapping (for on-time trains with NaT or unfiltered data)
             day_code = row['DAY']
             time_val = row['ACTUAL_CALLS'] if pd.notna(row['ACTUAL_CALLS']) else row['PLANNED_CALLS']
             
@@ -3983,6 +4126,35 @@ def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, 
     )
     
     valid_data = all_arrived_data.dropna(subset=['arrival_time', 'departure_time']).copy()
+    
+    # Apply time_range filter if specified (filters both delayed and on-time trains by reconstructed arrival_time)
+    if time_range is not None:
+        start, end = _expand_time_range(time_range)
+        print(f"\n[STATION_VIEW] Filtering valid_data by time_range: {start} to {end}", flush=True)
+        print(f"[STATION_VIEW] Before filtering - valid_data rows: {len(valid_data)}", flush=True)
+        
+        # Filter by arrival_time (applies to both delayed and on-time trains)
+        valid_data = valid_data[(valid_data['arrival_time'] >= start) & (valid_data['arrival_time'] <= end)].copy()
+        print(f"[STATION_VIEW] After filtering - valid_data rows: {len(valid_data)}", flush=True)
+    
+    # DIAGNOSTIC OUTPUT
+    print(f"\n[DIAGNOSTIC] station_view for station {station_id}:", flush=True)
+    print(f"  - Input rows: {len(all_arrived_data)}", flush=True)
+    print(f"  - Rows with datetime EVENT_DATETIME: {sum(isinstance(dt, (pd.Timestamp, datetime)) for dt in all_arrived_data['EVENT_DATETIME'])}", flush=True)
+    print(f"  - Valid arrival_times created: {all_arrived_data['arrival_time'].notna().sum()}", flush=True)
+    print(f"  - Valid rows (with arrival & departure): {len(valid_data)}", flush=True)
+    if len(valid_data) > 0:
+        print(f"  - Date range: {valid_data['arrival_time'].min().date()} to {valid_data['arrival_time'].max().date()}", flush=True)
+    
+    # DIAGNOSTIC: Compare delays across entire dataset vs valid_data
+    print(f"[DELAY COMPARISON]:", flush=True)
+    print(f"  - Mean delay (all_arrived_data): {all_arrived_data['delay_minutes'].mean():.2f}", flush=True)
+    print(f"  - Mean delay (valid_data): {valid_data['delay_minutes'].mean():.2f}", flush=True)
+    print(f"  - Zeros in all_arrived: {(all_arrived_data['delay_minutes'] == 0).sum()}", flush=True)
+    print(f"  - Zeros in valid_data: {(valid_data['delay_minutes'] == 0).sum()}", flush=True)
+    print(f"  - % zeros in all_arrived: {100*(all_arrived_data['delay_minutes'] == 0).sum()/len(all_arrived_data):.2f}%", flush=True)
+    print(f"  - % zeros in valid_data: {100*(valid_data['delay_minutes'] == 0).sum()/len(valid_data):.2f}%", flush=True)
+    print(flush=True)
     
     if len(valid_data) == 0:
         print("No valid datetime data.")
@@ -4029,6 +4201,18 @@ def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, 
     
     print(f"Processed {len(hourly_stats)} hours with comprehensive statistics\n")
     
+    # DIAGNOSTIC: Check hourly stats before binning
+    print(f"\n[HOURLY STATS DIAGNOSTIC]:", flush=True)
+    print(f"  - Total hours: {len(hourly_stats)}", flush=True)
+    print(f"  - Hours with is_100_percent_ontime=True: {(hourly_stats['is_100_percent_ontime'] == True).sum()}", flush=True)
+    print(f"  - Hours with is_100_percent_ontime=False: {(hourly_stats['is_100_percent_ontime'] == False).sum()}", flush=True)
+    print(f"  - Mean ontime_ratio across all hours: {hourly_stats['ontime_ratio'].mean():.6f}", flush=True)
+    print(f"  - Ontime_ratio min: {hourly_stats['ontime_ratio'].min():.6f}", flush=True)
+    print(f"  - Ontime_ratio max: {hourly_stats['ontime_ratio'].max():.6f}", flush=True)
+    if len(hourly_stats) > 0:
+        print(f"  - Sample ontime_ratio values: {hourly_stats['ontime_ratio'].head(10).tolist()}", flush=True)
+    print(flush=True)
+    
     # ===== PLOT 1: On-Time Performance vs System Load =====
     fig1, ax1 = plt.subplots(1, 1, figsize=figsize)
     
@@ -4063,6 +4247,11 @@ def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, 
     max_load = hourly_stats['trains_in_system_normalized'].max()
     bins = np.arange(0, max_load + bin_width, bin_width)
     
+    print(f"\n[BIN DIAGNOSTIC] For station {station_id}:", flush=True)
+    print(f"  - Max load value: {max_load:.2f}", flush=True)
+    print(f"  - Bin width: {bin_width}", flush=True)
+    print(f"  - Number of bins created: {len(bins)-1}", flush=True)
+    
     # Create single value labels (bin midpoints)
     labels = [f'{(bins[i] + bins[i+1])/2:.1f}' for i in range(len(bins)-1)]
     hourly_stats['load_bin'] = pd.cut(hourly_stats['trains_in_system_normalized'], 
@@ -4077,9 +4266,18 @@ def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, 
         std_ontime_ratio=('ontime_ratio', 'std')
     ).reset_index()
     
+    print(f"  - Actual bins with data: {len(bin_stats)}", flush=True)
+    print(f"  - Bin stats:\n{bin_stats.to_string()}", flush=True)
+    
     bin_stats['pct_hours_100_ontime'] = (bin_stats['hours_100_percent'] / bin_stats['total_hours'] * 100)
     bin_stats['cumulative_hours'] = bin_stats['total_hours'].cumsum()
     bin_stats['cdf'] = (bin_stats['cumulative_hours'] / bin_stats['total_hours'].sum() * 100)
+    
+    print(f"\nBin statistics ({len(bin_stats)} bins created):")
+    print(f"  Max load value: {max_load:.2f}")
+    print(f"  Bins: {list(bin_stats['load_bin'])}")
+    print(f"  Hours per bin: {list(bin_stats['total_hours'])}")
+    print(f"  100% on-time hours: {list(bin_stats['hours_100_percent'])}\n")
     
     fig2, ax2 = plt.subplots(1, 1, figsize=figsize)
     
@@ -4092,9 +4290,8 @@ def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, 
     ax2.tick_params(axis='both', labelsize=23)
     ax2.set_xticks(x_pos)
     ax2.set_xticklabels(bin_stats['load_bin'], rotation=0, fontsize=23)
-    ax2.set_xlim(-0.5, 12)
-    ax2.set_xticks(np.arange(0, 13, 2.5))
-    ax2.set_xticklabels([f'{x:.1f}' for x in np.arange(0, 2.6, 0.5)], fontsize=23)
+    # Adaptive xlim based on actual data range (not hardcoded to 12)
+    ax2.set_xlim(-0.5, len(bin_stats) - 0.5)
     ax2.set_ylim(0, 105)
     ax2.grid(True, alpha=0.3, axis='y')
     
@@ -4116,9 +4313,8 @@ def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, 
     ax3.tick_params(axis='both', labelsize=23)
     ax3.set_xticks(x_pos)
     ax3.set_xticklabels(bin_stats['load_bin'], rotation=0, fontsize=23)
-    ax3.set_xlim(-0.5, 12)
-    ax3.set_xticks(np.arange(0, 13, 2.5))
-    ax3.set_xticklabels([f'{x:.1f}' for x in np.arange(0, 2.6, 0.5)], fontsize=23)
+    # Adaptive xlim based on actual data range (not hardcoded to 12)
+    ax3.set_xlim(-0.5, len(bin_stats) - 0.5)
     ax3.set_ylim(0, 105)
     ax3.grid(True, alpha=0.3)
     
@@ -4148,7 +4344,7 @@ def station_view(station_id, all_data, num_platforms=6, time_window_minutes=60, 
 
 
 
-def comprehensive_station_analysis(station_id, all_data, num_platforms=6, dwell_time_minutes=5, max_delay_percentile=98):
+def comprehensive_station_analysis(station_id, all_data, num_platforms=6, dwell_time_minutes=5, max_delay_percentile=98, time_range=None):
     """
     Combined comprehensive station analysis displaying all visualizations in a single column figure.
     
@@ -4167,6 +4363,8 @@ def comprehensive_station_analysis(station_id, all_data, num_platforms=6, dwell_
         Typical dwell time at the station in minutes
     max_delay_percentile : int
         Maximum delay percentile to consider (typically 98)
+    time_range : tuple or None
+        Optional (start, end) tuple to filter by time range (default: None)
     
     Returns:
     --------
@@ -4191,7 +4389,8 @@ def comprehensive_station_analysis(station_id, all_data, num_platforms=6, dwell_
         num_platforms=num_platforms,
         figsize=(8, 4.7),
         max_delay_percentile=max_delay_percentile,
-        dwell_time_minutes=dwell_time_minutes
+        dwell_time_minutes=dwell_time_minutes,
+        time_range=time_range
     )
     
     # ===== CALL explore_delay_outliers =====
@@ -4201,7 +4400,8 @@ def comprehensive_station_analysis(station_id, all_data, num_platforms=6, dwell_
         all_data=all_data,
         num_platforms=num_platforms,
         dwell_time_minutes=dwell_time_minutes,
-        figsize=(8, 4.7)
+        figsize=(8, 4.7),
+        time_range=time_range
     )
     
     # ===== CALL station_view =====
@@ -4213,7 +4413,8 @@ def comprehensive_station_analysis(station_id, all_data, num_platforms=6, dwell_
         time_window_minutes=60,
         max_delay_percentile=max_delay_percentile,
         dwell_time_minutes=dwell_time_minutes,
-        figsize=(8, 4.7)
+        figsize=(8, 4.7),
+        time_range=time_range
     )
     
     # ===== CREATE COMBINED FIGURE WITH ALL PLOTS IN A COLUMN =====
@@ -4421,7 +4622,7 @@ def comprehensive_station_analysis(station_id, all_data, num_platforms=6, dwell_
 def _expand_time_range(time_range):
     """
     Normalize time_range to ensure it covers full days.
-    If start == end date, expand end to end of day (23:59:59).
+    Always expands end to end of day (23:59:59).
     
     Parameters:
     -----------
@@ -4446,13 +4647,13 @@ def _expand_time_range(time_range):
         start = pd.Timestamp(start).normalize()
     
     if isinstance(end, str):
-        end = pd.to_datetime(end)
+        end = pd.to_datetime(end).normalize()  # Convert to midnight first
     else:
-        end = pd.Timestamp(end)
+        end = pd.Timestamp(end).normalize()
     
-    # If same day, expand end to end of day
-    if start.date() == end.date():
-        end = end.replace(hour=23, minute=59, second=59)
+    # ALWAYS expand end to end of day (23:59:59), regardless of whether start == end
+    # This ensures the entire end date is included in the range
+    end = end.replace(hour=23, minute=59, second=59)
     
     return start, end
 
@@ -4493,27 +4694,20 @@ def station_analysis_with_time_range(station_id, all_data, time_range=None,
     dict
         Dictionary containing all results from comprehensive_station_analysis
     """
+    # NOTE: Time range filtering is now handled in station_view() after reconstructing arrival times.
+    # This ensures both delayed trains (filtered by EVENT_DATETIME) and on-time trains (filtered by reconstructed arrival_time) 
+    # respect the specified time_range. 
+    # Here we pass the full dataset and let the downstream functions handle the filtering.
     filtered_data = all_data.copy()
     
-    if time_range is not None:
-        start, end = _expand_time_range(time_range)
-        # Convert EVENT_DATETIME to datetime if it's not already
-        if 'EVENT_DATETIME' in filtered_data.columns:
-            filtered_data['EVENT_DATETIME'] = pd.to_datetime(filtered_data['EVENT_DATETIME'], errors='coerce')
-            # Filter by EVENT_DATETIME column
-            filtered_data = filtered_data[(filtered_data['EVENT_DATETIME'] >= start) & 
-                                     (filtered_data['EVENT_DATETIME'] <= end)].copy()
-            print(f"Filtered to {len(filtered_data)} records from {start} to {end}")
-        else:
-            print("Warning: EVENT_DATETIME column not found. Cannot filter by time range.")
-    
-    # Call original function with filtered data
+    # Call original function, passing time_range for downstream filtering
     return comprehensive_station_analysis(
         station_id=station_id,
         all_data=filtered_data,
         num_platforms=num_platforms,
         dwell_time_minutes=dwell_time_minutes,
-        max_delay_percentile=max_delay_percentile
+        max_delay_percentile=max_delay_percentile,
+        time_range=time_range
     )
 
 
