@@ -7,6 +7,8 @@ Welcome to rdmpy's documentation!
 
    getting_started
    api
+   how_to_contribute
+   contributors
 
 Indices and tables
 ==================
