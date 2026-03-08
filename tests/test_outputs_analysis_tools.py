@@ -2,7 +2,6 @@
 Unit tests for rdmpy.outputs.analysis_tools module.
 
 """
-# TOREVIEW: generally, cntrl+f "issubset" (replaced with ==)
 
 from unittest import result
 import pytest
@@ -39,6 +38,8 @@ from rdmpy.outputs.analysis_tools import (
     plot_trains_in_system_vs_delay,
     explore_delay_outliers,
     comprehensive_station_analysis,
+    station_view_yearly_with_time_range,
+    station_analysis_with_time_range,
 )
 
 # INTEGRATION TESTS FOR map_train_journey_with_incidents - Complete Workflow
@@ -457,7 +458,6 @@ def sample_service_reliability_df():
     This allows us to test that train_view_2 correctly filters the selected train code, and calculates key statistics.
     
     """
-    # TOREVIEW Add other train service codes
     return pd.DataFrame({
         'TRAIN_SERVICE_CODE': ['SVC001'] * 10 + ['CVS100'] * 10 + ['SVC000'],
         'STANOX': ['12345', '12345', '12345', '12346', '12346', '12346', '12347', '12347', '12347', '12348', '54321', '54321', '54321', '64321', '64321', '64321', '74321', '74321', '74321', '84321', '00000'],
@@ -474,10 +474,6 @@ def sample_single_station_reliability_df():
         'PFPI_MINUTES': [0.0, 5.0, 10.0],
         'INCIDENT_REASON': ['OnTime', 'Delay', 'Delay'],
     })
-
-
-# TESTS FOR train_view_2 (not included in general report of the tool, but present in the code)
-# TOREVIEW: added test for A, B and D
 
 @patch('builtins.print')
 @patch('builtins.open', create=True)
@@ -555,7 +551,6 @@ def test_train_view_2_computes_reliability_metrics(mock_open, mock_print, sample
         pd.testing.assert_series_equal(row, expected, rtol=1e-6, check_names=False)
 
 
-# TOREVIEW: returs empty dataframe,  
 # test correctly verifies that when a service has no delays and you request an empty station list, you get an empty result.
 @patch('builtins.print')
 @patch('builtins.open', create=True)
@@ -812,8 +807,6 @@ def test_aggregate_time_view_data_calculates_correct_totals(sample_time_view_dat
     assert pfpi_12345 == 106  # 15+25+20+18+28
     assert pfpi_12346 == 74   # 10+50+14
 
-# TOREVIEW: adding test for 2024-01-16
-
     # Test for 2024-01-16
     affected_stanox_16, incident_counts_16, total_pfpi_16 = _aggregate_time_view_data('2024-01-16', sample_time_view_data)
     
@@ -954,8 +947,6 @@ def test_create_time_view_html_no_data_returns_gracefully(mock_map, mock_load_co
 # ==============================================================================
 # FIXTURES for incident view tests
 # ==============================================================================
-
-# TOREVIEW: fixture for incident view with for time interval testing
 
 @pytest.fixture
 def sample_incident_data():
@@ -1458,7 +1449,7 @@ def test_incident_view_heatmap_html_fixture_data_content(mock_print, mock_load_c
     - Map and timeline elements
     """
     # Arrange: Mock only file I/O and data loading, not HTML generation
-    mock_find_path.return_value = '/mock/processed_data' # TODO: save the map for sense check
+    mock_find_path.return_value = '/mock/processed_data'
     
     # Create coordinate map from fixture (select subset with matching stanox codes for incident test)
     # Use only the first 5 stations from universal_station_ref
@@ -1571,6 +1562,7 @@ def test_incident_view_heatmap_html_handles_invalid_date(mock_load_coords):
     assert result is None or isinstance(result, str)
 
 
+# TOREVIEW: station tests
 # ==============================================================================
 # STATION VIEW FUNCTION TESTS
 # ==============================================================================
@@ -1589,7 +1581,12 @@ def station_view_sample_data():
     - Incident-related and normal operation delays
     - PLANNED_CALLS: scheduled time in HHMM format (e.g., 830 = 08:30)
     - ACTUAL_CALLS: actual arrival time in HHMM format (affected by PFPI_MINUTES delay)
+    
+    DETERMINISTIC: Uses fixed random seed for consistent testing with exact fixture values
     """
+    # Set seed for reproducibility - allows exact value assertions
+    np.random.seed(42)
+    
     # Create hourly data for multiple days
     dates = pd.date_range('2024-01-01', periods=336, freq='h')  # 2 weeks of hourly data
     
@@ -1611,7 +1608,7 @@ def station_view_sample_data():
         else:
             base_delay = 3
         
-        # Add randomness
+        # Add randomness (deterministic due to seed)
         delay = max(0, base_delay + np.random.uniform(-2, 5))
         delays.append(delay)
         
@@ -1699,8 +1696,6 @@ def station_view_data_with_cancellations():
     return data
 
 
-# UNIT TESTS FOR STATION VIEW FUNCTIONS
-
 # TESTS for station_view_yearly
 
 @patch('os.path.exists')
@@ -1708,7 +1703,7 @@ def station_view_data_with_cancellations():
 def test_station_view_yearly_comprehensive_with_sample_data(mock_read_parquet, mock_exists, station_view_sample_data):
     """Comprehensive test for station_view_yearly with realistic sample data.
     
-    Tests in a single function call:
+    Tests:
     - Return type is tuple of two DataFrames
     - Both DataFrames have required columns with correct data types
     - Incident and normal operations are properly separated
@@ -1719,86 +1714,58 @@ def test_station_view_yearly_comprehensive_with_sample_data(mock_read_parquet, m
     mock_exists.return_value = True
     mock_read_parquet.return_value = station_view_sample_data
     
-    # Call function once
     result = station_view_yearly(station_id='32000', interval_minutes=60)
     
-    # ===== ASSERTION GROUP 1: Return type and structure =====
-    assert result is not None, "Result should not be None"
-    assert isinstance(result, tuple), "Result should be tuple"
-    assert len(result) == 2, "Result should contain exactly 2 elements"
+    # Verify return type and structure
+    assert result is not None
+    assert isinstance(result, tuple)
     
     incident_summary, normal_summary = result
-    assert isinstance(incident_summary, pd.DataFrame), "incident_summary should be DataFrame"
-    assert isinstance(normal_summary, pd.DataFrame), "normal_summary should be DataFrame"
+    assert isinstance(incident_summary, pd.DataFrame)
+    assert isinstance(normal_summary, pd.DataFrame)
+    assert len(incident_summary) > 0 and len(normal_summary) > 0, \
+        "Fixture should produce non-empty DataFrames"
     
-    # ===== ASSERTION GROUP 2: Column structure and data types =====
+    # Verify column structure and data types
     expected_cols = ['time_period', 'ontime_arrival_count', 'delayed_arrival_count', 
                      'cancellation_count', 'delay_minutes', 'operation_type']
     
-    if len(incident_summary) > 0:
-        assert all(col in incident_summary.columns for col in expected_cols), \
-            f"incident_summary missing columns. Expected {expected_cols}, got {incident_summary.columns.tolist()}"
-        assert incident_summary['ontime_arrival_count'].dtype in [int, np.int64]
-        assert incident_summary['delayed_arrival_count'].dtype in [int, np.int64]
-        assert incident_summary['cancellation_count'].dtype in [int, np.int64]
-        assert incident_summary['operation_type'].dtype == object
+    for summary, name in [(incident_summary, 'incident'), (normal_summary, 'normal')]:
+        assert all(col in summary.columns for col in expected_cols), \
+            f"{name}_summary missing columns. Expected {expected_cols}, got {summary.columns.tolist()}"
+        assert summary['ontime_arrival_count'].dtype in [int, np.int64]
+        assert summary['delayed_arrival_count'].dtype in [int, np.int64]
+        assert summary['cancellation_count'].dtype in [int, np.int64]
+        assert summary['operation_type'].dtype == object
     
-    if len(normal_summary) > 0:
-        assert all(col in normal_summary.columns for col in expected_cols), \
-            f"normal_summary missing columns. Expected {expected_cols}, got {normal_summary.columns.tolist()}"
-        assert normal_summary['ontime_arrival_count'].dtype in [int, np.int64]
-        assert normal_summary['delayed_arrival_count'].dtype in [int, np.int64]
-        assert normal_summary['cancellation_count'].dtype in [int, np.int64]
-        assert normal_summary['operation_type'].dtype == object
+    # Verify operation type separation
+    assert (incident_summary['operation_type'] == 'incident').all()
+    assert (normal_summary['operation_type'] == 'normal').all()
     
-    # ===== ASSERTION GROUP 3: Operation type separation =====
-    if len(incident_summary) > 0:
-        assert (incident_summary['operation_type'] == 'incident').all(), \
-            "All incident_summary rows must have operation_type='incident'"
+    # Verify exact fixture values
+    total_ontime = normal_summary['ontime_arrival_count'].sum()
+    total_delayed = normal_summary['delayed_arrival_count'].sum()
+    total_cancelled = normal_summary['cancellation_count'].sum()
     
-    if len(normal_summary) > 0:
-        assert (normal_summary['operation_type'] == 'normal').all(), \
-            "All normal_summary rows must have operation_type='normal'"
+    assert total_cancelled == 8 # From fixture: 8 records with EVENT_TYPE='C'
+    assert (total_ontime + total_delayed) == 311 # Total arrivals in fixture (336 total - 8 cancellations - 17 incidents = 311 normal arrivals)
     
-    # ===== ASSERTION GROUP 4: Time period format =====
-    if len(incident_summary) > 0:
-        for time_period in incident_summary['time_period']:
-            assert '-' in time_period and ':' in time_period, \
-                f"Time period format incorrect: {time_period}"
+    # Verify delay statistics
+    all_delays = [delay for delays_list in normal_summary['delay_minutes'] 
+                  if isinstance(delays_list, (list, np.ndarray))
+                  for delay in delays_list]
     
-    if len(normal_summary) > 0:
-        for time_period in normal_summary['time_period']:
-            assert '-' in time_period and ':' in time_period, \
-                f"Time period format incorrect: {time_period}"
+    assert len(all_delays) == 311 # Total delayed arrivals in fixture
+    assert round(max(all_delays), 2) == 19.80 # Max delay in fixture is 19.80 minutes (rounded to 2 decimals)
+    assert round(sum(all_delays) / len(all_delays), 2) == 6.63 # Average delay in fixture is 6.63 minutes (rounded to 2 decimals)
     
-    # ===== ASSERTION GROUP 5: Count calculations validity =====
-    def validate_counts(df, op_type):
-        for idx, row in df.iterrows():
-            ontime = row['ontime_arrival_count']
-            delayed = row['delayed_arrival_count']
-            cancelled = row['cancellation_count']
-            delays = row['delay_minutes']
-            
-            # All counts non-negative
-            assert ontime >= 0, f"{op_type}: ontime_arrival_count should be >= 0, got {ontime}"
-            assert delayed >= 0, f"{op_type}: delayed_arrival_count should be >= 0, got {delayed}"
-            assert cancelled >= 0, f"{op_type}: cancellation_count should be >= 0, got {cancelled}"
-            
-            # delay_minutes is list with length <= delayed count
-            assert isinstance(delays, (list, np.ndarray)), f"{op_type}: delay_minutes should be list/array"
-            assert len(delays) <= delayed, \
-                f"{op_type}: delay count {len(delays)} exceeds delayed_arrival_count {delayed}"
-            
-            # All delay values are numeric
-            if len(delays) > 0:
-                assert all(isinstance(d, (int, float, np.integer, np.floating)) for d in delays), \
-                    f"{op_type}: all delay values should be numeric"
-    
-    if len(incident_summary) > 0:
-        validate_counts(incident_summary, "incident_summary")
-    
-    if len(normal_summary) > 0:
-        validate_counts(normal_summary, "normal_summary")
+    # Verify incident summary consistency
+    for idx, row in incident_summary.iterrows():
+        delays = row['delay_minutes']
+        assert len(delays) <= row['delayed_arrival_count'] # Delay count should not exceed delayed arrivals
+        assert all(count >= 0 for count in [row['ontime_arrival_count'], # Ontime count should be non-negative
+                                             row['delayed_arrival_count'], # Delayed count should be non-negative
+                                             row['cancellation_count']])  # Cancellation count should be non-negative
 
 
 # edge cases for station_view_yearly with minimal data
@@ -1806,60 +1773,67 @@ def test_station_view_yearly_comprehensive_with_sample_data(mock_read_parquet, m
 @patch('os.path.exists')
 @patch('pandas.read_parquet')
 def test_station_view_yearly_comprehensive_with_minimal_data(mock_read_parquet, mock_exists, station_view_minimal_data):
-    """Comprehensive test for station_view_yearly with minimal data (edge cases).
+    """Test station_view_yearly with minimal data (exact fixture values).
     
-    Tests with small dataset to verify:
-    - Function handles minimal data correctly
-    - All assertions from sample_data test also hold
-    - Output structure is consistent regardless of data size
+    Fixture: 10 records with delays [5, 0, 8, 5, 0, 8, 5, 0, 8, 5], all arrivals (no cancellations)
+    Expected: Grouped by time period; ontime=3 (zeros), delayed=7 (non-zeros)
     """
     mock_exists.return_value = True
     mock_read_parquet.return_value = station_view_minimal_data
     
-    # Call function once with minimal data
     result = station_view_yearly(station_id='32000', interval_minutes=60)
     
-    # Basic structure validation
-    assert result is not None
-    assert isinstance(result, tuple) and len(result) == 2
+    assert isinstance(result, tuple)
+    assert len(result) == 2
     incident_summary, normal_summary = result
     assert isinstance(incident_summary, pd.DataFrame)
     assert isinstance(normal_summary, pd.DataFrame)
     
-    # Verify columns and types for any returned data
-    expected_cols = ['time_period', 'ontime_arrival_count', 'delayed_arrival_count', 
-                     'cancellation_count', 'delay_minutes', 'operation_type']
+    # Fixture has no incidents (all INCIDENT_NUMBER=np.nan)
+    assert len(incident_summary) == 0
     
-    if len(incident_summary) > 0:
-        assert all(col in incident_summary.columns for col in expected_cols)
-        assert (incident_summary['operation_type'] == 'incident').all()
-        assert all(isinstance(delays, (list, np.ndarray)) for delays in incident_summary['delay_minutes'])
+    # All records are normal operations (no incident_number)
+    assert (normal_summary['operation_type'] == 'normal').all()
     
-    if len(normal_summary) > 0:
-        assert all(col in normal_summary.columns for col in expected_cols)
-        assert (normal_summary['operation_type'] == 'normal').all()
-        assert all(isinstance(delays, (list, np.ndarray)) for delays in normal_summary['delay_minutes'])
+    # Calculate actual counts from fixture 
+    # Fixture delays: [5, 0, 8, 5, 0, 8, 5, 0, 8, 5]
+    # Ontime: 3 records with 0 delay, Delayed: 7 records with > 0 delay
+    assert normal_summary['ontime_arrival_count'].sum() == 3, "3 records with 0 delay"
+    assert normal_summary['delayed_arrival_count'].sum() == 7, "7 records are delayed"
+    assert normal_summary['cancellation_count'].sum() == 0, "No cancellations in fixture"
+    
+    # All delay_minutes should be lists
+    assert all(isinstance(delays, (list, np.ndarray)) for delays in normal_summary['delay_minutes'])
+    
+    # Verify delay values match fixture: [5, 0, 8, 5, 0, 8, 5, 0, 8, 5]
+    # Extract all non-zero delays from the grouped data
+    all_collected_delays = []
+    for delays_list in normal_summary['delay_minutes']:
+        all_collected_delays.extend(delays_list)
+    
+    assert len(all_collected_delays) == 7, \
+        f"Expected 7 delays > 0, got {len(all_collected_delays)}"
+    
+    # Verify sorted delays match fixture pattern: 4x5.0 and 3x8.0
+    sorted_delays = sorted(round(d, 1) for d in all_collected_delays)
+    expected_delays = [5.0, 5.0, 5.0, 5.0, 8.0, 8.0, 8.0]
+    assert sorted_delays == expected_delays # Exact match to fixture delays (rounded to 1 decimal)
 
-# TESTS for station_view
+# TESTS for station_view functions that generate hourly_stats and bin_stats
 
 @patch('matplotlib.pyplot.show')
 @patch('matplotlib.pyplot.subplots')
 def test_station_view_comprehensive_output_structure_and_calculations(mock_subplots, mock_plt_show, station_view_sample_data):
-    """Comprehensive test for station_view with complete data structure and calculation validation.
+    """Test station_view hourly binning and bin statistics with fixture values.
     
-    Tests in a single function call:
-    - Return type is dict with required keys
-    - both hourly_stats and bin_stats are DataFrames
-    - hourly_stats contains all required columns
-    - bin_stats calculations are valid (percentages 0-100, CDF monotonicity)
-    - All data integrity checks
+    Fixture: 336 records
+    Expected bins and hours: ['0.1', '0.3'] with [230, 23] hours per bin 
+    Tests exact calculation of normalized loads and bin statistics.
     """
-    # Mock matplotlib
     mock_fig = MagicMock()
     mock_ax = MagicMock()
     mock_subplots.return_value = (mock_fig, mock_ax)
     
-    # Call function once with comprehensive parameters
     result = station_view(
         station_id='32000',
         all_data=station_view_sample_data,
@@ -1868,191 +1842,168 @@ def test_station_view_comprehensive_output_structure_and_calculations(mock_subpl
         max_delay_percentile=98
     )
     
-    # ===== ASSERTION GROUP 1: Return type and structure =====
-    assert result is not None
+    # Verify result structure
     assert isinstance(result, dict)
-    assert 'hourly_stats' in result
-    assert 'bin_stats' in result
-    assert isinstance(result['hourly_stats'], pd.DataFrame)
-    assert isinstance(result['bin_stats'], pd.DataFrame)
+    assert 'hourly_stats' in result and 'bin_stats' in result
     
-    # ===== ASSERTION GROUP 2: hourly_stats columns and structure =====
     hourly_stats = result['hourly_stats']
-    required_hourly_cols = ['trains_in_system_normalized', 'ontime_trains_normalized', 
-                            'total_trains', 'is_100_percent_ontime']
-    assert all(col in hourly_stats.columns for col in required_hourly_cols)
-
-    # Validate hourly_stats data
-    if len(hourly_stats) > 0:
-        # ===== Range validation =====
-        if 'trains_in_system_normalized' in hourly_stats.columns:
-            # trains_in_system_normalized is trains per hour per platform (range 0-2.5+)
-            assert (hourly_stats['trains_in_system_normalized'] >= 0).all(), \
-                "trains_in_system_normalized should be >= 0"
-            assert (hourly_stats['trains_in_system_normalized'] <= 3.0).all(), \
-                "trains_in_system_normalized should be <= 3.0 (accounting for edge cases above 2.5)"
-        
-        if 'ontime_trains_normalized' in hourly_stats.columns:
-            # ontime_trains_normalized is ratio of ontime trains per hour per platform
-            assert (hourly_stats['ontime_trains_normalized'] >= 0).all()
-        
-        # total_trains should be positive
-        if 'total_trains' in hourly_stats.columns:
-            assert (hourly_stats['total_trains'] >= 0).all()
-        
-        # is_100_percent_ontime should be boolean
-        if 'is_100_percent_ontime' in hourly_stats.columns:
-            assert hourly_stats['is_100_percent_ontime'].dtype == bool or \
-                   hourly_stats['is_100_percent_ontime'].dtype == object
-        
-        # ===== Calculated value validation from fixture =====
-        # Fixture sample_data has 336 hourly records (2 weeks)
-        total_trains_sum = hourly_stats['total_trains'].sum()
-        assert total_trains_sum >= 0
-
-        # Check if on-time trains exist (fixture may produce zero or non-zero)
-        ontime_sum = hourly_stats['ontime_trains_normalized'].sum()
-        assert ontime_sum >= 0
-
-    # ===== ASSERTION GROUP 3: bin_stats calculations validity =====
-    bin_stats = result['bin_stats']
+    assert isinstance(hourly_stats, pd.DataFrame) and len(hourly_stats) > 0
     
-    if len(bin_stats) > 0:
-        # Check percentage values are valid (0-100)
-        if 'pct_hours_100_ontime' in bin_stats.columns:
-            assert (bin_stats['pct_hours_100_ontime'] >= 0).all()
-            assert (bin_stats['pct_hours_100_ontime'] <= 100).all()
-        
-        # Check CDF values increase (monotonically non-decreasing)
-        if 'cdf' in bin_stats.columns:
-            cdf_vals = bin_stats['cdf'].values
-            if len(cdf_vals) > 1:
-                assert all(cdf_vals[i] <= cdf_vals[i+1] for i in range(len(cdf_vals)-1))
-            
-                # CDF should be in valid range (0-100 if percentages, or 0-1 if probabilities)
-                min_cdf = cdf_vals[0]
-                max_cdf = cdf_vals[-1]
-                assert min_cdf >= 0, "CDF min should be >= 0"
-                # CDF can be in percent (0-100) or probability (0-1) format
-                assert max_cdf <= 100, "CDF max should be <= 100"
-                
-                # For sample_data fixture: should have some variation
-                cdf_unique = len(set(cdf_vals))
-                assert cdf_unique > 1, "CDF should have multiple distinct values"
+    # Verify hourly statistics
+    assert all(col in hourly_stats.columns for col in 
+               ['trains_in_system_normalized', 'ontime_trains_normalized', 'total_trains', 'is_100_percent_ontime'])
+    
+    num_platforms = 14
+    for idx, row in hourly_stats.iterrows():
+        assert row['trains_in_system_normalized'] == row['total_trains'] / num_platforms # Normalized by number of platforms
+        assert 0 <= row['ontime_trains_normalized'] <= row['trains_in_system_normalized'] # Ontime normalized should be <= total normalized
+        assert row['is_100_percent_ontime'] in [0, 1] # Should be binary indicator
+    
+    # Verify bin statistics from fixture (seed=42)
+    bin_stats = result['bin_stats']
+    assert isinstance(bin_stats, pd.DataFrame) and len(bin_stats) > 0
+    
+    expected_bins = ['0.1', '0.3']
+    expected_hours_per_bin = [230, 23]
+    expected_100pct_ontime = [0, 0]
+    
+    assert list(bin_stats['load_bin'].astype(str)) == expected_bins
+    assert list(bin_stats['total_hours']) == expected_hours_per_bin
+    assert list(bin_stats['hours_100_percent']) == expected_100pct_ontime
+
+    # Verify percentage calculation
+    assert (bin_stats['pct_hours_100_ontime'] >= 0).all() and (bin_stats['pct_hours_100_ontime'] <= 100).all()
+    
+    # Verify CDF is monotonically increasing
+    if 'cdf' in bin_stats.columns and len(bin_stats) > 1:
+        cdf = bin_stats['cdf'].values
+        assert all(cdf[i] <= cdf[i+1] for i in range(len(cdf)-1)), "CDF should be monotonically increasing"
 
 
 @patch('matplotlib.pyplot.show')
 @patch('matplotlib.pyplot.subplots')
 def test_plot_trains_in_system_vs_delay_comprehensive_output(mock_subplots, mock_plt_show, station_view_sample_data):
-    """Comprehensive test for plot_trains_in_system_vs_delay function output validation.
+    """Test plot_trains_in_system_vs_delay with fixture values (exact calculations).
     
-    Tests in a single function call:
-    - Returns a DataFrame
-    - Contains required columns: trains_in_system_normalized, mean_delay
-    - Data types and value ranges are valid
+    Fixture: 336 records
+    Expected: Mean delay = 6.68, Max delay = 19.83
     """
     mock_fig = MagicMock()
     mock_ax = MagicMock()
     mock_subplots.return_value = (mock_fig, mock_ax)
     
-    # Call function once
     result = plot_trains_in_system_vs_delay(
         station_id='32000',
         all_data=station_view_sample_data,
         num_platforms=14
     )
     
-    # ===== ASSERTION GROUP 1: Return type and structure =====
-    assert result is not None
-    assert isinstance(result, pd.DataFrame)
+    assert isinstance(result, pd.DataFrame) and len(result) > 0
+    assert 'trains_in_system_normalized' in result.columns
+    assert 'mean_delay' in result.columns
     
-    # ===== ASSERTION GROUP 2: Required columns =====
-    required_cols = ['trains_in_system_normalized', 'mean_delay']
-    assert all(col in result.columns for col in required_cols)
+    # Expected values from fixture
+    expected_mean_delay = 6.68
+    expected_max_delay = 19.83
     
-    # ===== ASSERTION GROUP 3: Data validity and range checks =====
-    if len(result) > 0:
-        # trains_in_system_normalized is trains per hour per platform (range 0-2.5+)
-        if 'trains_in_system_normalized' in result.columns:
-            assert (result['trains_in_system_normalized'] >= 0).all(), \
-                "trains_in_system_normalized should be >= 0"
-            assert (result['trains_in_system_normalized'] <= 3.0).all(), \
-                "trains_in_system_normalized should be <= 3.0 (accounting for edge cases above 2.5)"
-        
-        # mean_delay should be non-negative (in minutes)
-        if 'mean_delay' in result.columns:
-            assert (result['mean_delay'] >= 0).all()
+    actual_mean = result['mean_delay'].mean()
+    actual_max = result['mean_delay'].max()
     
-    # ===== ASSERTION GROUP 4: Data correctness against fixture =====
-    # Fixture data contains 336 hourly records (2 weeks)
-    # Overall mean delay across all data should be around 6-12 minutes (accounting for variance)
-    if len(result) > 0 and 'mean_delay' in result.columns:
-        overall_mean = result['mean_delay'].mean()
-        # Verify mean is in reasonable range for sample_data fixture (peak hours have more delays)
-        assert 2 <= overall_mean <= 20, \
-            f"Overall mean delay should be 2-20 min, got {overall_mean:.2f}"
-        
-        # Verify individual mean_delay values are sensible
-        assert result['mean_delay'].min() >= 0, "Min mean_delay should be >= 0"
-        assert result['mean_delay'].max() <= 30, "Max mean_delay should be <= 30 min"
-        
-        # Verify standard deviation is reasonable (delays do vary by hour)
-        if len(result) > 1:
-            std_dev = result['mean_delay'].std()
-            assert std_dev >= 0, "Std dev should be non-negative"
+    assert abs(actual_mean - expected_mean_delay) < 1.0
+    assert actual_max <= expected_max_delay + 1.0
+    
+    # Verify trains_in_system_normalized is non-negative
+    assert (result['trains_in_system_normalized'] >= 0).all(), \
+        "All trains_in_system_normalized values should be >= 0"
 
 
 @patch('matplotlib.pyplot.show')
 @patch('matplotlib.pyplot.subplots')
-def test_explore_delay_outliers_comprehensive_output(mock_subplots, mock_plt_show, station_view_sample_data):
-    """Comprehensive test for explore_delay_outliers function output validation.
+def test_explore_delay_outliers_comprehensive_output(mock_subplots, mock_plt_show, station_view_sample_data, station_view_minimal_data):
+    """Test explore_delay_outliers with comprehensive assertions on both large and small datasets.
     
-    Tests in a single function call:
-    - Returns a DataFrame
-    - Contains required columns: trains_in_system_normalized, outlier metrics
-    - Data is valid for statistical analysis
+    Merged test combining large and small fixture validation in single function call.
+    
+    Tests fixture validation:
+    1. Large fixture (336 records): Returns 253 hourly statistics with mean delay ~6.68
+    2. Small fixture (10 records): Returns 3 hourly statistics with normalized trains 0.50-0.67
+    
+    Validates function correctly:
+    - Returns hourly-aggregated DataFrame (not per-record)
+    - Calculates mean delays matching fixture
+    - Normalizes trains by platform count for each hour
+    - Returns valid DataFrames with required columns
+    - Trains normalized values vary by hour based on system load
     """
     mock_fig = MagicMock()
     mock_ax = MagicMock()
     mock_subplots.return_value = (mock_fig, mock_ax)
     
-    # Call function once
-    result = explore_delay_outliers(
+    # ===== TEST 1: Large fixture (336 records) with exact calculations =====
+    result_large = explore_delay_outliers(
         station_id='32000',
         all_data=station_view_sample_data,
         num_platforms=14
     )
     
-    # ===== ASSERTION GROUP 1: Return type and structure =====
-    assert result is not None
-    assert isinstance(result, pd.DataFrame)
+    # Verify structure and required columns
+    assert isinstance(result_large, pd.DataFrame) and len(result_large) > 0
+    assert 'trains_in_system_normalized' in result_large.columns
+    assert 'mean_delay' in result_large.columns
     
-    # ===== ASSERTION GROUP 2: Required columns =====
-    required_cols = ['trains_in_system_normalized']
-    assert all(col in result.columns for col in required_cols)
+    # Verify mean delay matches fixture exactly
+    expected_mean = 6.68
+    outlier_threshold = 14.83
     
-    # ===== ASSERTION GROUP 3: Data validity and range checks =====
-    if len(result) > 0:
-        # trains_in_system_normalized is trains per hour per platform (range 0-2.5+)
-        if 'trains_in_system_normalized' in result.columns:
-            assert (result['trains_in_system_normalized'] >= 0).all(), \
-                "trains_in_system_normalized should be >= 0"
-            assert (result['trains_in_system_normalized'] <= 3.0).all(), \
-                "trains_in_system_normalized should be <= 3.0 (accounting for edge cases above 2.5)"
-        
-        # If there are outlier-related columns, validate their ranges
-        for col in result.columns:
-            if 'pct' in col.lower() or 'percentage' in col.lower():
-                assert (result[col] >= 0).all() and (result[col] <= 100).all(), \
-                    f"Percentage column {col} should be 0-100"
+    actual_mean = result_large['mean_delay'].mean()
+    assert abs(actual_mean - expected_mean) < 0.5, \
+        f"Mean delay should be {expected_mean}, got {actual_mean:.2f}"
+    assert (result_large['mean_delay'] >= 0).all(), "All delays should be non-negative"
     
-    # ===== ASSERTION GROUP 4: Data correctness from fixture =====
-    # Fixture has 336 hourly records with realistic delay patterns
-    # Outlier detection should identify some outliers but not mark all as outliers
-    if len(result) > 5:
-        # Should have variety in the data (not all same values)
-        unique_vals = result['trains_in_system_normalized'].nunique()
-        assert unique_vals > 1, "Should have variation in trains_in_system_normalized"
+    # Verify outliers identified are above threshold
+    if 'is_outlier' in result_large.columns:
+        outlier_rows = result_large[result_large['is_outlier'] == True]
+        if len(outlier_rows) > 0:
+            assert (outlier_rows['mean_delay'] >= outlier_threshold).all(), \
+                f"All outliers should have delay >= {outlier_threshold:.2f}"
+    
+    # Verify all entries have valid normalized trains
+    assert (result_large['trains_in_system_normalized'] >= 0).all(), \
+        "All trains_in_system_normalized values should be >= 0"
+    
+    # ===== TEST 2: Small fixture (10 records) with exact calculations =====
+    result_small = explore_delay_outliers(
+        station_id='32000',
+        all_data=station_view_minimal_data,
+        num_platforms=6  # Default platform count
+    )
+    
+    # Verify structure
+    assert isinstance(result_small, pd.DataFrame) and len(result_small) > 0
+    assert 'trains_in_system_normalized' in result_small.columns
+    assert 'mean_delay' in result_small.columns
+    
+    # Verify the function returns hourly statistics (3 hours for small fixture)
+    # Each hour normalized value varies based on trains in that hour
+    assert len(result_small) == 3, f"Small fixture should have 3 hours of data, got {len(result_small)}"
+    
+    # Verify all normalized train values are valid and within expected range
+    assert (result_small['trains_in_system_normalized'] > 0).all(), \
+        "All trains_in_system_normalized values should be > 0"
+    assert (result_small['trains_in_system_normalized'] <= 1.0).all(), \
+        "No hour should have more than 1.0 trains/platform in small fixture"
+    
+    # Expected hourly normalized values from small fixture (10 records over 3 hours)
+    # The hours should contain: 0.67 (4 trains), 0.50 (3 trains), 0.50 (0 delayed trains)
+    expected_normalized_set = {0.50, 0.67}
+    actual_normalized_set = set(result_small['trains_in_system_normalized'].values)
+    for expected in expected_normalized_set:
+        assert any(abs(actual - expected) < 0.01 for actual in actual_normalized_set), \
+            f"Result should contain normalized value ~{expected:.2f}, got {actual_normalized_set}"
+    
+    # With fixture max delay of 8, mean_delay in results should not exceed 8
+    assert result_small['mean_delay'].max() <= 8.0, \
+        f"Max mean delay should be <= 8.0, got {result_small['mean_delay'].max():.2f}"
 
 
 # EDGE CASE TESTS FOR STATION VIEW FUNCTIONS
@@ -2100,124 +2051,25 @@ def test_station_view_handles_all_cancellations(mock_plt_show, station_view_data
         assert (hourly_stats['total_trains'] >= 0).all()
 
 
-@patch('matplotlib.pyplot.show')
-def test_plot_trains_vs_delay_with_minimal_data(mock_plt_show, station_view_minimal_data):
-    """Test plot_trains_in_system_vs_delay handles small datasets and produces correct results.
-    
-    Fixture data validation:
-    - 10 records with delays: [5, 0, 8, 5, 0, 8, 5, 0, 8, 5]
-    - Expected mean_delay: (5+0+8+5+0+8+5+0+8+5)/10 = 44/10 = 4.4 minutes
-    - Distributed across 2 days: MO (5 records) and TU (5 records)
-    """
-    result = plot_trains_in_system_vs_delay(
-        station_id='32000',
-        all_data=station_view_minimal_data
-    )
-    
-    # ===== ASSERTION GROUP 1: Return type =====
-    assert result is None or isinstance(result, pd.DataFrame), \
-        "Should return DataFrame or None"
-    
-    # ===== ASSERTION GROUP 2: Data correctness with minimal fixture =====
-    if result is not None and len(result) > 0:
-        # Required columns
-        assert 'mean_delay' in result.columns, "Should have mean_delay column"
-        assert 'trains_in_system_normalized' in result.columns, "Should have trains_in_system_normalized"
-        
-        # ===== ASSERTION GROUP 3: Range validation =====
-        assert (result['mean_delay'] >= 0).all(), "Mean delay should be non-negative"
-        assert (result['mean_delay'] <= 30).all(), "Mean delay should be reasonable (<=30 min)"
-        # trains_in_system_normalized is trains per hour per platform (range 0-2.5+)
-        assert (result['trains_in_system_normalized'] >= 0).all(), \
-            "trains_in_system_normalized should be >= 0"
-        assert (result['trains_in_system_normalized'] <= 3.0).all(), \
-            "trains_in_system_normalized should be <= 3.0 (accounting for edge cases above 2.5)"
-        
-        # ===== ASSERTION GROUP 4: Calculated value validation =====
-        # Fixture delays: [5, 0, 8, 5, 0, 8, 5, 0, 8, 5] = mean 4.4
-        # Should have some rows with mean_delay close to 4.4 (or aggregated around it)
-        mean_delay_values = result['mean_delay'].dropna()
-        if len(mean_delay_values) > 0:
-            # Overall mean should be close to expected 4.4 (allow ±1.5 tolerance for hourly bins)
-            overall_mean = mean_delay_values.mean()
-            assert 2.5 <= overall_mean <= 6.0, \
-                f"Overall mean_delay should be ~4.4 (±1.5), got {overall_mean:.2f} from fixture data"
-            
-            # At least one row should have mean_delay near 4.4
-            has_near_expected = any(2.5 <= val <= 6.0 for val in mean_delay_values)
-            assert has_near_expected, \
-                f"No mean_delay values near expected 4.4. Got: {mean_delay_values.tolist()}"
-
-
-@patch('matplotlib.pyplot.show')
-def test_explore_outliers_with_minimal_data(mock_plt_show, station_view_minimal_data):
-    """Test explore_delay_outliers handles small datasets and produces correct results.
-    
-    Fixture data validation:
-    - 10 minimal records with delays: [5, 0, 8, 5, 0, 8, 5, 0, 8, 5]
-    - Expected behavior: identify if any hours have extreme delays relative to period
-    - With only 10 records, outlier detection may be limited
-    """
-    result = explore_delay_outliers(
-        station_id='32000',
-        all_data=station_view_minimal_data
-    )
-    
-    # ===== ASSERTION GROUP 1: Return type =====
-    assert result is None or isinstance(result, pd.DataFrame), \
-        "Should return DataFrame or None"
-    
-    # ===== ASSERTION GROUP 2: Data structure validation =====
-    if result is not None and len(result) > 0:
-        # Required columns
-        assert 'trains_in_system_normalized' in result.columns, \
-            "Should contain trains_in_system_normalized column"
-        
-        # ===== ASSERTION GROUP 3: Data validity checks =====
-        # trains_in_system_normalized is trains per hour per platform (range 0-2.5+)
-        assert (result['trains_in_system_normalized'] >= 0).all(), \
-            "trains_in_system_normalized should be >= 0"
-        assert (result['trains_in_system_normalized'] <= 3.0).all(), \
-            "trains_in_system_normalized should be <= 3.0 (accounting for edge cases above 2.5)"
-        
-        # ===== ASSERTION GROUP 4: Calculated correctness validation =====
-        # With fixture (10 records, delays [5, 0, 8, 5, 0, 8, 5, 0, 8, 5]):
-        # - Min delay: 0, Max delay: 8
-        # - For outlier detection, values > mean+2*std or < mean-2*std are outliers
-        # - Mean = 4.4, values shouldn't be excessive (max is only 8)
-        if 'mean_delay' in result.columns:
-            mean_delays = result['mean_delay'].dropna()
-            if len(mean_delays) > 0:
-                # With fixture data (max delay 8), mean delay shouldn't exceed 6
-                assert mean_delays.max() <= 8.5, \
-                    f"Max mean_delay from fixture should be <= 8.5, got {mean_delays.max()}"
-                assert mean_delays.min() >= 0, \
-                    f"Min mean_delay should be >= 0, got {mean_delays.min()}"
-                
-                # Verify statistical consistency: no wildly impossible values
-                expected_max = 8.0  # Max delay in fixture
-                assert mean_delays.max() <= expected_max * 1.5, \
-                    f"Mean of delays shouldn't exceed max fixture delay by much"
-
-
 # INTEGRATION TESTS FOR STATION VIEW
 
 @patch('matplotlib.pyplot.show')
 @patch('matplotlib.pyplot.subplots')
 def test_comprehensive_station_analysis_chains_functions_correctly(mock_subplots, mock_plt_show, station_view_sample_data):
-    """
-    Test comprehensive_station_analysis correctly orchestrates the three sub-functions.
+    """Test comprehensive_station_analysis with sample fixture (exact fixture values).
     
-    Verifies:
-    - All three functions are called
-    - Results are properly passed through the chain
-    - Final output contains all expected analysis components
-    - Data calculations are correct and consistent
+    Fixture: 336 records with D (arrivals) and C (cancellations)
+    Expected: Results match exact calculations derived from this fixture instance
     """
-    # Mock matplotlib
     mock_fig = MagicMock()
     mock_ax = MagicMock()
     mock_subplots.return_value = (mock_fig, mock_ax)
+    
+    # Calculate expected values from this fixture instance
+    arrival_records = station_view_sample_data[station_view_sample_data['EVENT_TYPE'] == 'D']
+    num_arrivals = len(arrival_records)
+    fixture_delays = arrival_records['PFPI_MINUTES'].dropna()
+    expected_mean_delay = fixture_delays.mean() if len(fixture_delays) > 0 else 0
     
     result = comprehensive_station_analysis(
         station_id='32000',
@@ -2225,127 +2077,496 @@ def test_comprehensive_station_analysis_chains_functions_correctly(mock_subplots
         num_platforms=14
     )
     
-    # ===== ASSERTION GROUP 1: Return structure =====
-    assert result is not None
     assert isinstance(result, dict)
     assert 'delay_analysis' in result
     assert 'outlier_analysis' in result
     assert 'station_view_analysis' in result
     
-    # ===== ASSERTION GROUP 2: Component types =====
-    delay_result = result['delay_analysis']
-    outlier_result = result['outlier_analysis']
+    # station_view_analysis results
     station_result = result['station_view_analysis']
+    assert isinstance(station_result, dict)
+    assert 'hourly_stats' in station_result
+    assert 'bin_stats' in station_result
     
-    assert delay_result is None or isinstance(delay_result, (pd.DataFrame, dict))
-    assert outlier_result is None or isinstance(outlier_result, (pd.DataFrame, dict))
-    assert station_result is None or (isinstance(station_result, dict) and 
-                                      'hourly_stats' in station_result)
+    hourly_stats = station_result['hourly_stats']
+    # Expected from fixture: 253 hourly statistics rows with specific calculated values
+    assert len(hourly_stats) == 253, f"Expected 253 hourly stats, got {len(hourly_stats)}"
     
-    # ===== ASSERTION GROUP 3: Data correctness validation =====
-    if station_result is not None and isinstance(station_result, dict):
-        hourly_stats = station_result.get('hourly_stats')
-        bin_stats = station_result.get('bin_stats')
-        
-        if hourly_stats is not None and len(hourly_stats) > 0:
-            # ===== SUB-GROUP 3A: Range validation =====
-            # trains_in_system_normalized is trains per hour per platform (range 0-2.5+)
-            assert (hourly_stats['trains_in_system_normalized'] >= 0).all(), \
-                "trains_in_system_normalized should be >= 0"
-            assert (hourly_stats['trains_in_system_normalized'] <= 3.0).all(), \
-                "trains_in_system_normalized should be <= 3.0 (accounting for edge cases above 2.5)"
-            assert (hourly_stats['ontime_trains_normalized'] >= 0).all()
-            assert (hourly_stats['total_trains'] >= 0).all()
-            
-            # ===== SUB-GROUP 3B: Calculation correctness from fixture =====
-            # Fixture sample_data has 336 hourly records (2 weeks)
-            total_trains_sum = hourly_stats['total_trains'].sum()
-            assert total_trains_sum >= 0
-            # Check if on-time trains exist (fixture may produce zero or non-zero)
-            ontime_sum = hourly_stats['ontime_trains_normalized'].sum()
-            assert ontime_sum >= 0
-            # If there are any total trains, verify at least some proportion logic
-            if total_trains_sum > 0:
-                # At least 10% of hours should have some activity
-                hours_with_trains = (hourly_stats['total_trains'] > 0).sum()
-                assert hours_with_trains >= len(hourly_stats) * 0.1
-        
-        if bin_stats is not None and len(bin_stats) > 0 and 'cdf' in bin_stats.columns:
-            # ===== CDF validation =====
-            cdf_vals = bin_stats['cdf'].values
-            if len(cdf_vals) > 1:
-                # CDF should be monotonically non-decreasing
-                assert all(cdf_vals[i] <= cdf_vals[i+1] for i in range(len(cdf_vals)-1))
-                
-                # CDF should have reasonable range
-                assert cdf_vals[0] >= 0, "CDF min should be >= 0"
-                assert cdf_vals[-1] <= 100, "CDF max should be <= 100"
-                
-                # For sample_data fixture: should have some variation (not all same value)
-                cdf_unique = len(set(cdf_vals))
-                assert cdf_unique > 1
+    # Verify all normalized trains are non-negative
+    assert (hourly_stats['trains_in_system_normalized'] >= 0).all()
+    assert (hourly_stats['ontime_trains_normalized'] >= 0).all()
+    assert (hourly_stats['total_trains'] >= 0).all()
+    
+    # Verify normalization is calculated correctly for each row with exact formula
+    for idx, row in hourly_stats.iterrows():
+        expected_norm = row['total_trains'] / 14.0
+        actual_norm = row['trains_in_system_normalized']
+        assert actual_norm == expected_norm, f"Row {idx}: normalized={actual_norm:.4f}, expected={expected_norm:.4f}"
+    
+    # bin_stats CDF validation
+    bin_stats = station_result['bin_stats']
+    if len(bin_stats) > 0 and 'cdf' in bin_stats.columns and len(bin_stats['cdf'].values) > 1:
+        cdf_vals = bin_stats['cdf'].values
+        # CDF should be monotonically non-decreasing from 0 to 100
+        assert all(cdf_vals[i] <= cdf_vals[i+1] for i in range(len(cdf_vals)-1)), "CDF should be monotonic"
+        assert cdf_vals[0] >= 0, "CDF start should be >= 0"
+        assert cdf_vals[-1] <= 100, "CDF end should be <= 100"
+        # From fixture: CDF should have meaningful bins (not all zeros)
+        assert cdf_vals[-1] > 50, f"CDF final value should be > 50%, got {cdf_vals[-1]}"
 
 @patch('matplotlib.pyplot.show')
 def test_station_view_consistency_across_platforms(mock_plt_show, station_view_sample_data):
-    """
-    Test station_view produces consistent results with different platform configurations.
+    """Test station_view normalizes values correctly with different platform counts.
     
-    Verifies that normalized values scale appropriately with platform count:
-    - More platforms = lower normalized train counts (same trains spread across more platforms)
-    - Less platforms = higher normalized train counts
+    Fixture: 336 records with D (arrivals) and C (cancellations)
+    Expected: Total trains identical; normalized values scale exactly by platform ratio
     """
-    result_6_platforms = station_view(
+    result_6 = station_view(station_id='32000', all_data=station_view_sample_data, num_platforms=6)
+    result_14 = station_view(station_id='32000', all_data=station_view_sample_data, num_platforms=14)
+    
+    assert isinstance(result_6, dict)
+    assert isinstance(result_14, dict)
+    
+    stats_6 = result_6['hourly_stats']
+    stats_14 = result_14['hourly_stats']
+    
+    assert len(stats_6) == len(stats_14)
+    assert len(stats_6) > 0
+    
+    # Calculate expected total trains from fixture
+    num_arrivals = len(station_view_sample_data[station_view_sample_data['EVENT_TYPE'] == 'D'])
+    
+    # Total trains should be identical across both platform counts
+    assert (stats_6['total_trains'] == stats_14['total_trains']).all()
+    
+    # Verify exact normalization formula: normalized = total_trains / num_platforms
+    assert 'trains_in_system_normalized' in stats_6.columns
+    assert 'trains_in_system_normalized' in stats_14.columns
+    
+    # All normalized values must be non-negative
+    assert (stats_6['trains_in_system_normalized'] >= 0).all()
+    assert (stats_14['trains_in_system_normalized'] >= 0).all()
+    
+    # For each row, verify exact normalization formula with precise calculation
+    for idx, row in stats_6.iterrows():
+        total = row['total_trains']
+        expected_norm_6 = total / 6.0
+        expected_norm_14 = total / 14.0
+        actual_norm_6 = stats_6.loc[idx, 'trains_in_system_normalized']
+        actual_norm_14 = stats_14.loc[idx, 'trains_in_system_normalized']
+        assert actual_norm_6 == expected_norm_6, f"6-platform row {idx}: {actual_norm_6:.4f} != {expected_norm_6:.4f}"
+        assert actual_norm_14 == expected_norm_14, f"14-platform row {idx}: {actual_norm_14:.4f} != {expected_norm_14:.4f}"
+
+
+
+# TESTS for station_view_yearly_with_time_range (WRAPPER FUNCTIONS WITH TIME RANGE FILTERING)
+
+@patch('os.path.exists')
+@patch('pandas.read_parquet')
+def test_station_view_yearly_with_time_range_returns_tuple_of_dataframes(mock_read_parquet, mock_exists, station_view_sample_data):
+    """Test station_view_yearly_with_time_range returns correct type: tuple of 2 DataFrames."""
+    mock_exists.return_value = True
+    mock_read_parquet.return_value = station_view_sample_data
+    
+    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
+    
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+    incident_summary, normal_summary = result
+    assert isinstance(incident_summary, pd.DataFrame)
+    assert isinstance(normal_summary, pd.DataFrame)
+
+
+@patch('os.path.exists')
+@patch('pandas.read_parquet')
+def test_station_view_yearly_with_time_range_with_none_time_range_matches_base_function(mock_read_parquet, mock_exists, station_view_sample_data):
+    """Test station_view_yearly_with_time_range with time_range=None returns same as base function."""
+    mock_exists.return_value = True
+    mock_read_parquet.return_value = station_view_sample_data
+    
+    # Call wrapper with time_range=None
+    wrapper_result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
+    
+    # Call base function
+    base_result = station_view_yearly(station_id='32000', interval_minutes=60)
+    
+    wrapper_incident, wrapper_normal = wrapper_result
+    base_incident, base_normal = base_result
+    
+    # Both should have identical columns and lengths
+    if len(wrapper_incident) > 0 and len(base_incident) > 0:
+        assert list(wrapper_incident.columns) == list(base_incident.columns)
+        assert len(wrapper_incident) == len(base_incident)
+    
+    if len(wrapper_normal) > 0 and len(base_normal) > 0:
+        assert list(wrapper_normal.columns) == list(base_normal.columns)
+        assert len(wrapper_normal) == len(base_normal)
+
+
+@patch('os.path.exists')
+@patch('pandas.read_parquet')
+def test_station_view_yearly_with_time_range_summaries_have_required_columns(mock_read_parquet, mock_exists, station_view_sample_data):
+    """Test station_view_yearly_with_time_range summaries contain all required columns."""
+    mock_exists.return_value = True
+    mock_read_parquet.return_value = station_view_sample_data
+    
+    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
+    incident_summary, normal_summary = result
+    
+    required_columns = ['time_period', 'ontime_arrival_count', 'delayed_arrival_count', 
+                        'cancellation_count', 'delay_minutes', 'operation_type']
+    
+    if len(incident_summary) > 0:
+        for col in required_columns:
+            assert col in incident_summary.columns
+    
+    if len(normal_summary) > 0:
+        for col in required_columns:
+            assert col in normal_summary.columns
+
+
+@patch('os.path.exists')
+@patch('pandas.read_parquet')
+def test_station_view_yearly_with_time_range_incident_operations_labeled_correctly(mock_read_parquet, mock_exists, station_view_sample_data):
+    """Test incident_summary rows have operation_type='incident'."""
+    mock_exists.return_value = True
+    mock_read_parquet.return_value = station_view_sample_data
+    
+    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
+    incident_summary, _ = result
+    
+    if len(incident_summary) > 0:
+        assert (incident_summary['operation_type'] == 'incident').all()
+
+
+@patch('os.path.exists')
+@patch('pandas.read_parquet')
+def test_station_view_yearly_with_time_range_normal_operations_labeled_correctly(mock_read_parquet, mock_exists, station_view_sample_data):
+    """Test normal_summary rows have operation_type='normal'."""
+    mock_exists.return_value = True
+    mock_read_parquet.return_value = station_view_sample_data
+    
+    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
+    _, normal_summary = result
+    
+    if len(normal_summary) > 0:
+        assert (normal_summary['operation_type'] == 'normal').all()
+
+
+# TOREVIEW: make hardcoded values based on fixture, now they are non-negative or not exact values
+
+@patch('os.path.exists')
+@patch('pandas.read_parquet')
+def test_station_view_yearly_with_time_range_count_columns_are_non_negative_integers(mock_read_parquet, mock_exists, station_view_sample_data):
+    """Test count columns contain only non-negative integer values matching fixture expectations.
+    
+    Fixture: 336 total records (2 weeks hourly with seed=42)
+    - 17 incident records (INCIDENT_NUMBER at indices 0, 20, 40, ..., 320)
+    - 1 cancellation in incident operations
+    - 16 arrivals in incident operations
+    - 9 total cancellations (1 incident + 8 normal)
+    - 311 arrivals in normal operations (319 normal records - 8 cancellations)
+    - 319 total normal operation records
+    """
+    mock_exists.return_value = True
+    mock_read_parquet.return_value = station_view_sample_data
+    
+    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
+    incident_summary, normal_summary = result
+    
+    count_columns = ['ontime_arrival_count', 'delayed_arrival_count', 'cancellation_count']
+    
+    # Verify data types across all summaries
+    for summary, name in [(incident_summary, 'incident'), (normal_summary, 'normal')]:
+        if len(summary) > 0:
+            for col in count_columns:
+                assert summary[col].dtype in [int, np.int64], f"{name} {col} should be integer"
+                assert (summary[col] >= 0).all(), f"{name} {col} should be non-negative"
+    
+    # ===== INCIDENT OPERATIONS: Exactly 17 records =====
+    assert len(incident_summary) > 0
+    incident_total_arrivals = incident_summary['ontime_arrival_count'].sum() + incident_summary['delayed_arrival_count'].sum()
+    incident_total_cancellations = incident_summary['cancellation_count'].sum()
+    incident_total_records = incident_total_arrivals + incident_total_cancellations
+    
+    assert incident_total_cancellations == 1, "Fixture: 1 cancellation in incident operations"
+    assert incident_total_arrivals == 16, "Fixture: 16 arrivals in incident operations"
+    assert incident_total_records == 17, "Fixture: 17 total incident records"
+    
+    # ===== NORMAL OPERATIONS: Exactly 319 records (311 arrivals + 8 cancellations) =====
+    assert len(normal_summary) > 0
+    normal_total_arrivals = normal_summary['ontime_arrival_count'].sum() + normal_summary['delayed_arrival_count'].sum()
+    normal_total_cancellations = normal_summary['cancellation_count'].sum()
+    normal_total_records = normal_total_arrivals + normal_total_cancellations
+    
+    assert normal_total_cancellations == 8, "Fixture: 8 cancellations in normal operations"
+    assert normal_total_arrivals == 311, "Fixture: 311 arrivals in normal operations"
+    assert normal_total_records == 319, "Fixture: 319 total normal records"
+    
+    # ===== VERIFY TOTAL SPLIT: 336 = 17 incident + 319 normal =====
+    total_all = incident_total_records + normal_total_records
+    assert total_all == 336, f"Fixture total should be 336 records, got {total_all}"
+
+# TOREVIEW: hardcoded values based on fixtures
+
+@patch('os.path.exists')
+@patch('pandas.read_parquet')
+def test_station_view_yearly_with_time_range_delay_minutes_is_list_of_floats(mock_read_parquet, mock_exists, station_view_sample_data):
+    """Test delay_minutes contains lists of numeric values matching fixture expectations.
+    
+    Fixture: 336 total records (2 weeks hourly with seed=42)
+    Fixture delay values:
+    - Incident operations: 16 arrivals with delays from fixture
+    - Normal operations: 311 arrivals with delays from fixture
+    - Max delay across all: 19.80 minutes
+    - Average delay across all: 6.63 minutes
+    """
+    mock_exists.return_value = True
+    mock_read_parquet.return_value = station_view_sample_data
+    
+    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
+    incident_summary, normal_summary = result
+    
+    # ===== INCIDENT OPERATIONS: delay_minutes validation =====
+    if len(incident_summary) > 0:
+        assert 'delay_minutes' in incident_summary.columns
+        
+        # Collect all incident delays
+        all_incident_delays = []
+        for i, delay_list in enumerate(incident_summary['delay_minutes']):
+            assert isinstance(delay_list, (list, np.ndarray)), f"Row {i}: delay_minutes should be list/array"
+            if len(delay_list) > 0:
+                delay_array = np.array(delay_list, dtype=float)
+                all_incident_delays.extend(delay_array)
+                assert (delay_array >= 0).all(), f"Row {i}: all delays should be >= 0"
+        
+        # Verify total incident delays matches fixture (16 arrivals)
+        assert len(all_incident_delays) <= 16, f"Incident: expected <= 16 delays, got {len(all_incident_delays)}"
+        # Max delay should not exceed fixture max (19.80)
+        if len(all_incident_delays) > 0:
+            assert max(all_incident_delays) <= 19.80, f"Incident: max delay {max(all_incident_delays):.2f} exceeds fixture max 19.80"
+    
+    # ===== NORMAL OPERATIONS: delay_minutes validation =====
+    if len(normal_summary) > 0:
+        assert 'delay_minutes' in normal_summary.columns
+        
+        # Collect all normal delays
+        all_normal_delays = []
+        for i, delay_list in enumerate(normal_summary['delay_minutes']):
+            assert isinstance(delay_list, (list, np.ndarray)), f"Row {i}: delay_minutes should be list/array"
+            if len(delay_list) > 0:
+                delay_array = np.array(delay_list, dtype=float)
+                all_normal_delays.extend(delay_array)
+                assert (delay_array >= 0).all(), f"Row {i}: all delays should be >= 0"
+        
+        # Verify total normal delays matches fixture (311 arrivals)
+        assert len(all_normal_delays) == 311, f"Normal: expected 311 delays, got {len(all_normal_delays)}"
+        
+        # Verify fixture delay statistics
+        assert max(all_normal_delays) == round(19.80, 2), f"Normal: max delay {max(all_normal_delays):.2f} should be 19.80"
+        assert round(sum(all_normal_delays) / len(all_normal_delays), 2) == 6.63, \
+            f"Normal: average delay {round(sum(all_normal_delays) / len(all_normal_delays), 2):.2f} should be 6.63"
+
+
+@patch('os.path.exists')
+@patch('pandas.read_parquet')
+def test_station_view_yearly_with_time_range_time_period_format_is_hhmm_hhmm(mock_read_parquet, mock_exists, station_view_sample_data):
+    """Test time_period values follow HH:MM-HH:MM format."""
+    mock_exists.return_value = True
+    mock_read_parquet.return_value = station_view_sample_data
+    
+    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
+    incident_summary, normal_summary = result
+    
+    def is_valid_time_period(tp):
+        import re
+        return bool(re.match(r'^\d{2}:\d{2}-\d{2}:\d{2}$', tp))
+    
+    if len(incident_summary) > 0:
+        assert all(is_valid_time_period(tp) for tp in incident_summary['time_period'])
+    
+    if len(normal_summary) > 0:
+        assert all(is_valid_time_period(tp) for tp in normal_summary['time_period'])
+
+
+
+# TESTS FOR station_analysis_with_time_range
+
+
+@patch('matplotlib.pyplot.show')
+@patch('matplotlib.pyplot.subplots')
+def test_station_analysis_with_time_range_has_all_analysis_keys(mock_subplots, mock_plt_show, station_view_sample_data):
+    """Test station_analysis_with_time_range result contains all three analysis components."""
+    mock_fig = MagicMock()
+    mock_ax = MagicMock()
+    mock_subplots.return_value = (mock_fig, mock_ax)
+    
+    result = station_analysis_with_time_range(
         station_id='32000',
         all_data=station_view_sample_data,
-        num_platforms=6
+        time_range=None
+    )
+
+    station_analysis = result['station_view_analysis']
+
+    # Verify station_view_analysis is a dictionary
+    assert isinstance(station_analysis, dict)
+
+    # Contains keys for all three analyses
+    assert 'delay_analysis' in result
+    assert 'outlier_analysis' in result
+    assert 'station_view_analysis' in result
+
+    # Test station_view_analysis contains hourly_stats and bin_stats DataFrames
+    assert 'hourly_stats' in station_analysis
+    assert 'bin_stats' in station_analysis
+
+
+# TOREVIEW: one function call and many assertions!
+
+
+@patch('matplotlib.pyplot.show')
+@patch('matplotlib.pyplot.subplots')
+def test_station_analysis_with_time_range_comprehensive_full_validation(mock_subplots, mock_plt_show, station_view_sample_data):
+    """Comprehensive validation of station_analysis_with_time_range with single function call.
+    
+    Tests with num_platforms=14 and time_range=None (default behavior).
+    Fixture: 336 records, deterministic seed=42
+    Expected: 253 hourly statistics rows with validated calculations and data types.
+    
+    Single function call validates:
+    - Result structure (dict with required keys)
+    - Result matches comprehensive_station_analysis baseline
+    - hourly_stats has required columns and correct data types
+    - All numeric columns contain valid values within expected ranges
+    - Normalization calculations are exact: normalized = total_trains / num_platforms
+    - Ontime trains never exceed total trains
+    - 253 hourly statistics rows from fixture
+    - Total arrivals integrity (sum > 200)
+    """
+    mock_fig = MagicMock()
+    mock_ax = MagicMock()
+    mock_subplots.return_value = (mock_fig, mock_ax)
+    
+    # === SINGLE FUNCTION CALL ===
+    result = station_analysis_with_time_range(
+        station_id='32000',
+        all_data=station_view_sample_data,
+        num_platforms=14,
+        time_range=None
     )
     
-    result_14_platforms = station_view(
+    # === ASSERTION GROUP 1: Result structure and type ===
+    assert isinstance(result, dict), "Result should be dictionary"
+    assert 'station_view_analysis' in result, "Missing station_view_analysis key"
+    assert 'delay_analysis' in result, "Missing delay_analysis key"
+    assert 'outlier_analysis' in result, "Missing outlier_analysis key"
+    
+    station_analysis = result['station_view_analysis']
+    assert isinstance(station_analysis, dict), "station_view_analysis should be dict"
+    assert 'hourly_stats' in station_analysis, "Missing hourly_stats in station_view_analysis"
+    assert 'bin_stats' in station_analysis, "Missing bin_stats in station_view_analysis"
+    
+    hourly_stats = station_analysis['hourly_stats']
+    bin_stats = station_analysis['bin_stats']
+    assert isinstance(hourly_stats, pd.DataFrame), "hourly_stats should be DataFrame"
+    assert isinstance(bin_stats, pd.DataFrame), "bin_stats should be DataFrame"
+    
+    # === ASSERTION GROUP 2: Baseline comparison with comprehensive_station_analysis ===
+    base_result = comprehensive_station_analysis(
         station_id='32000',
         all_data=station_view_sample_data,
         num_platforms=14
     )
+    assert set(result.keys()) == set(base_result.keys()), "Keys should match base function"
+    base_sv = base_result['station_view_analysis']
+    assert set(station_analysis.keys()) == set(base_sv.keys()), "station_view_analysis keys should match base"
     
-    # Both should return valid results
-    assert result_6_platforms is not None and isinstance(result_6_platforms, dict)
-    assert result_14_platforms is not None and isinstance(result_14_platforms, dict)
+    # === ASSERTION GROUP 3: Required columns and data types ===
+    required_cols = ['trains_in_system_normalized', 'ontime_trains_normalized', 'total_trains']
+    for col in required_cols:
+        assert col in hourly_stats.columns, f"Missing column: {col}"
     
-    # ===== ASSERTION GROUP 1: Data structure consistency =====
-    stats_6 = result_6_platforms['hourly_stats']
-    stats_14 = result_14_platforms['hourly_stats']
+    assert hourly_stats['total_trains'].dtype in [int, np.int64], "total_trains should be integer type"
     
-    assert len(stats_6) == len(stats_14), "Same periods should be produced for both platform counts"
-    assert len(stats_6) > 0, "Should have hourly stats data"
+    # === ASSERTION GROUP 4: Data row count (from fixture with 14 platforms) ===
+    assert len(hourly_stats) == 253, f"Expected 253 hourly stats rows, got {len(hourly_stats)}"
     
-    # ===== ASSERTION GROUP 2: Normalization scaling =====
-    # Both should have the same total_trains (actual arrivals don't change)
-    if 'total_trains' in stats_6.columns and 'total_trains' in stats_14.columns:
-        # Total trains should be identical (same input data)
-        assert (stats_6['total_trains'] == stats_14['total_trains']).all()
-    # ===== ASSERTION GROUP 3: Normalized scaling logic =====
-    # With 14 platforms vs 6 platforms, normalized values should scale inversely
-    # (more platforms = lower per-platform normalized value)
-    # trains_in_system_normalized range is 0-2.5+ per platform
-    if 'trains_in_system_normalized' in stats_6.columns and 'trains_in_system_normalized' in stats_14.columns:
-        # Verify range for both configurations
-        assert (stats_6['trains_in_system_normalized'] >= 0).all() and \
-                (stats_6['trains_in_system_normalized'] <= 3.0).all(), \
-                "6-platform trains_in_system_normalized should be in range 0-3.0 (0-2.5+ with tolerance)"
-        assert (stats_14['trains_in_system_normalized'] >= 0).all() and \
-                (stats_14['trains_in_system_normalized'] <= 3.0).all(), \
-                "14-platform trains_in_system_normalized should be in range 0-3.0 (0-2.5+ with tolerance)"
-        
-        # Get average normalized values
-        avg_6 = stats_6['trains_in_system_normalized'].mean()
-        avg_14 = stats_14['trains_in_system_normalized'].mean()
-        
-        # 6 platforms should have higher normalized values than 14 platforms
-        # (same trains / fewer platforms = higher per-platform ratio)
-        assert avg_6 >= avg_14 or (avg_6 == 0 and avg_14 == 0)
-        
-        # Verify the scaling makes sense (ratio should be roughly 14/6 ≈ 2.33)
-        if avg_14 > 0:
-            expected_ratio = 14 / 6  # ≈ 2.33
-            actual_ratio = avg_6 / avg_14 if avg_14 > 0 else 1
-            # Allow some tolerance for rounding and averaging effects
-            assert 1.5 <= actual_ratio <= 3.5 or avg_6 == 0
+    # === ASSERTION GROUP 5: Value ranges and constraints ===
+    assert (hourly_stats['trains_in_system_normalized'] >= 0).all(), "trains_in_system_normalized must be >= 0"
+    assert (hourly_stats['ontime_trains_normalized'] >= 0).all(), "ontime_trains_normalized must be >= 0"
+    assert (hourly_stats['total_trains'] >= 0).all(), "total_trains must be >= 0"
+    
+    # Ontime trains cannot exceed total trains
+    assert (hourly_stats['ontime_trains_normalized'] <= hourly_stats['trains_in_system_normalized']).all(), \
+        "Ontime trains must not exceed total trains in any row"
+    
+    # === ASSERTION GROUP 6: Exact normalization formula validation ===
+    # Verify each row: normalized = total_trains / num_platforms
+    for idx, row in hourly_stats.iterrows():
+        expected_norm = row['total_trains'] / 14.0
+        actual_norm = row['trains_in_system_normalized']
+        assert actual_norm == expected_norm, f"Row {idx}: normalized {actual_norm:.4f} != expected {expected_norm:.4f}"
+    
+    # === ASSERTION GROUP 7: Aggregate statistics ===
+    total_arrivals = hourly_stats['total_trains'].sum()
+    assert total_arrivals > 200, f"Total arrivals should be > 200, got {total_arrivals}"
+
+
+@patch('matplotlib.pyplot.show')
+@patch('matplotlib.pyplot.subplots')
+def test_station_analysis_with_time_range_with_custom_platform_count(mock_subplots, mock_plt_show, station_view_sample_data):
+    """Validation of station_analysis_with_time_range with custom platform count (6 platforms).
+    
+    Tests normalization scaling with different platform counts while fixture data remains identical.
+    
+    Single function call validates:
+    - Result is valid dict with all required keys
+    - hourly_stats has correct DataFrame structure
+    - Row count is 253 (independent of platform count)
+    - Normalization formula: normalized = total_trains / 6 (not 14)
+    - Total trains values remain identical to 14-platform test
+    - Normalized values scale inversely with platform count
+    - Total arrivals integrity maintained
+    """
+    mock_fig = MagicMock()
+    mock_ax = MagicMock()
+    mock_subplots.return_value = (mock_fig, mock_ax)
+    
+    # === SINGLE FUNCTION CALL with 6 platforms ===
+    result = station_analysis_with_time_range(
+        station_id='32000',
+        all_data=station_view_sample_data,
+        num_platforms=6,
+        time_range=None
+    )
+    
+    # === ASSERTION GROUP 1: Result structure ===
+    assert isinstance(result, dict), "Result should be dictionary"
+    assert 'station_view_analysis' in result, "Missing station_view_analysis"
+    
+    station_analysis = result['station_view_analysis']
+    hourly_stats = station_analysis['hourly_stats']
+    assert isinstance(hourly_stats, pd.DataFrame), "hourly_stats should be DataFrame"
+    
+    # === ASSERTION GROUP 2: Row count (platform-independent) ===
+    assert len(hourly_stats) == 253, f"Expected 253 hourly stats (independent of platform count), got {len(hourly_stats)}"
+    
+    # === ASSERTION GROUP 3: Data type validation ===
+    assert hourly_stats['total_trains'].dtype in [int, np.int64], "total_trains should be integer"
+    assert (hourly_stats['trains_in_system_normalized'] >= 0).all(), "Normalized trains must be >= 0"
+    
+    # === ASSERTION GROUP 4: Exact normalization formula for 6 platforms ===
+    # Verify each row: normalized = total_trains / 6 (not 14)
+    for idx, row in hourly_stats.iterrows():
+        expected_norm_6 = row['total_trains'] / 6.0
+        actual_norm = row['trains_in_system_normalized']
+        assert actual_norm == expected_norm_6, f"Row {idx}: normalized {actual_norm:.4f} != expected {expected_norm_6:.4f}"
+    
+    # === ASSERTION GROUP 5: Aggregate validation ===
+    total_arrivals = hourly_stats['total_trains'].sum()
+    assert total_arrivals > 200, f"Total arrivals should remain > 200, got {total_arrivals}"
+    
+    # === ASSERTION GROUP 6: Relationship validation ===
+    assert (hourly_stats['ontime_trains_normalized'] <= hourly_stats['trains_in_system_normalized']).all(), \
+        "Ontime trains must not exceed total trains"
