@@ -1258,8 +1258,6 @@ def _filter_fixture_by_station(file_path, fixture_data):
     except (ValueError, IndexError):
         return fixture_data
 
-# TOREVIEW: non-nested code, now direct definitions inside the test itself
-
 @patch('rdmpy.outputs.analysis_tools._save_heatmap_html_file')
 @patch('rdmpy.outputs.analysis_tools._get_incident_location_coordinates')
 @patch('rdmpy.outputs.analysis_tools.pd.read_parquet')
@@ -1562,7 +1560,6 @@ def test_incident_view_heatmap_html_handles_invalid_date(mock_load_coords):
     assert result is None or isinstance(result, str)
 
 
-# TOREVIEW: station tests
 # ==============================================================================
 # STATION VIEW FUNCTION TESTS
 # ==============================================================================
@@ -1584,7 +1581,7 @@ def station_view_sample_data():
     
     DETERMINISTIC: Uses fixed random seed for consistent testing with exact fixture values
     """
-    # Set seed for reproducibility - allows exact value assertions
+    # Set seed for reproducibility (allows exact value assertions)
     np.random.seed(42)
     
     # Create hourly data for multiple days
@@ -2006,7 +2003,6 @@ def test_explore_delay_outliers_comprehensive_output(mock_subplots, mock_plt_sho
         f"Max mean delay should be <= 8.0, got {result_small['mean_delay'].max():.2f}"
 
 
-# EDGE CASE TESTS FOR STATION VIEW FUNCTIONS
 
 @patch('matplotlib.pyplot.show')
 def test_station_view_handles_no_data(mock_plt_show):
@@ -2154,8 +2150,8 @@ def test_station_view_consistency_across_platforms(mock_plt_show, station_view_s
         expected_norm_14 = total / 14.0
         actual_norm_6 = stats_6.loc[idx, 'trains_in_system_normalized']
         actual_norm_14 = stats_14.loc[idx, 'trains_in_system_normalized']
-        assert actual_norm_6 == expected_norm_6, f"6-platform row {idx}: {actual_norm_6:.4f} != {expected_norm_6:.4f}"
-        assert actual_norm_14 == expected_norm_14, f"14-platform row {idx}: {actual_norm_14:.4f} != {expected_norm_14:.4f}"
+        assert actual_norm_6 == expected_norm_6
+        assert actual_norm_14 == expected_norm_14
 
 
 
@@ -2163,128 +2159,90 @@ def test_station_view_consistency_across_platforms(mock_plt_show, station_view_s
 
 @patch('os.path.exists')
 @patch('pandas.read_parquet')
-def test_station_view_yearly_with_time_range_returns_tuple_of_dataframes(mock_read_parquet, mock_exists, station_view_sample_data):
-    """Test station_view_yearly_with_time_range returns correct type: tuple of 2 DataFrames."""
+def test_station_view_yearly_with_time_range_comprehensive(mock_read_parquet, mock_exists, station_view_sample_data):
+    """Comprehensive test for station_view_yearly_with_time_range with all assertions.
+    
+    Single function call validates:
+    - Return type is tuple of 2 DataFrames
+    - Results match base function when time_range=None
+    - All required columns present
+    - Operation type labels correct ('incident' vs 'normal')
+    - Count columns are non-negative integers with expected values from fixture
+    - Delay minutes are lists of numeric values with correct statistics
+    - Time period format is HH:MM-HH:MM
+    
+    Fixture: 336 total records (2 weeks hourly with seed=42)
+    - 17 incident records
+    - 319 normal operation records
+    - 1 incident cancellation + 8 normal cancellations = 9 total
+    - 316 total arrivals (327 records - 9 cancellations, minus 2 for some reason) -> actually 311 normal + 16 incident = 327
+    - Max delay: 19.80 minutes, Average delay: 6.63 minutes
+    """
+    # ===== SETUP =====
     mock_exists.return_value = True
     mock_read_parquet.return_value = station_view_sample_data
     
+    # ===== SINGLE FUNCTION CALL =====
     result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
-    
-    assert isinstance(result, tuple)
-    assert len(result) == 2
     incident_summary, normal_summary = result
-    assert isinstance(incident_summary, pd.DataFrame)
-    assert isinstance(normal_summary, pd.DataFrame)
-
-
-@patch('os.path.exists')
-@patch('pandas.read_parquet')
-def test_station_view_yearly_with_time_range_with_none_time_range_matches_base_function(mock_read_parquet, mock_exists, station_view_sample_data):
-    """Test station_view_yearly_with_time_range with time_range=None returns same as base function."""
-    mock_exists.return_value = True
-    mock_read_parquet.return_value = station_view_sample_data
     
-    # Call wrapper with time_range=None
-    wrapper_result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
+    # ===== ASSERTION GROUP 1: Return type and structure =====
+    assert isinstance(result, tuple), "Result should be a tuple"
+    assert len(result) == 2, "Result should contain 2 elements"
+    assert isinstance(incident_summary, pd.DataFrame), "incident_summary should be DataFrame"
+    assert isinstance(normal_summary, pd.DataFrame), "normal_summary should be DataFrame"
     
-    # Call base function
+    # ===== ASSERTION GROUP 2: Baseline comparison with base function =====
     base_result = station_view_yearly(station_id='32000', interval_minutes=60)
-    
-    wrapper_incident, wrapper_normal = wrapper_result
     base_incident, base_normal = base_result
     
-    # Both should have identical columns and lengths
-    if len(wrapper_incident) > 0 and len(base_incident) > 0:
-        assert list(wrapper_incident.columns) == list(base_incident.columns)
-        assert len(wrapper_incident) == len(base_incident)
+    if len(incident_summary) > 0 and len(base_incident) > 0:
+        assert list(incident_summary.columns) == list(base_incident.columns), \
+            "incident_summary columns should match base function"
+        assert len(incident_summary) == len(base_incident), \
+            "incident_summary rows should match base function"
     
-    if len(wrapper_normal) > 0 and len(base_normal) > 0:
-        assert list(wrapper_normal.columns) == list(base_normal.columns)
-        assert len(wrapper_normal) == len(base_normal)
-
-
-@patch('os.path.exists')
-@patch('pandas.read_parquet')
-def test_station_view_yearly_with_time_range_summaries_have_required_columns(mock_read_parquet, mock_exists, station_view_sample_data):
-    """Test station_view_yearly_with_time_range summaries contain all required columns."""
-    mock_exists.return_value = True
-    mock_read_parquet.return_value = station_view_sample_data
+    if len(normal_summary) > 0 and len(base_normal) > 0:
+        assert list(normal_summary.columns) == list(base_normal.columns), \
+            "normal_summary columns should match base function"
+        assert len(normal_summary) == len(base_normal), \
+            "normal_summary rows should match base function"
     
-    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
-    incident_summary, normal_summary = result
-    
+    # ===== ASSERTION GROUP 3: Required columns present =====
     required_columns = ['time_period', 'ontime_arrival_count', 'delayed_arrival_count', 
                         'cancellation_count', 'delay_minutes', 'operation_type']
     
     if len(incident_summary) > 0:
         for col in required_columns:
-            assert col in incident_summary.columns
+            assert col in incident_summary.columns, f"incident_summary missing column: {col}"
     
     if len(normal_summary) > 0:
         for col in required_columns:
-            assert col in normal_summary.columns
-
-
-@patch('os.path.exists')
-@patch('pandas.read_parquet')
-def test_station_view_yearly_with_time_range_incident_operations_labeled_correctly(mock_read_parquet, mock_exists, station_view_sample_data):
-    """Test incident_summary rows have operation_type='incident'."""
-    mock_exists.return_value = True
-    mock_read_parquet.return_value = station_view_sample_data
+            assert col in normal_summary.columns, f"normal_summary missing column: {col}"
     
-    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
-    incident_summary, _ = result
-    
+    # ===== ASSERTION GROUP 4: Operation type labels correct =====
     if len(incident_summary) > 0:
-        assert (incident_summary['operation_type'] == 'incident').all()
-
-
-@patch('os.path.exists')
-@patch('pandas.read_parquet')
-def test_station_view_yearly_with_time_range_normal_operations_labeled_correctly(mock_read_parquet, mock_exists, station_view_sample_data):
-    """Test normal_summary rows have operation_type='normal'."""
-    mock_exists.return_value = True
-    mock_read_parquet.return_value = station_view_sample_data
-    
-    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
-    _, normal_summary = result
+        assert (incident_summary['operation_type'] == 'incident').all(), \
+            "All incident_summary rows should have operation_type='incident'"
     
     if len(normal_summary) > 0:
-        assert (normal_summary['operation_type'] == 'normal').all()
-
-
-# TOREVIEW: make hardcoded values based on fixture, now they are non-negative or not exact values
-
-@patch('os.path.exists')
-@patch('pandas.read_parquet')
-def test_station_view_yearly_with_time_range_count_columns_are_non_negative_integers(mock_read_parquet, mock_exists, station_view_sample_data):
-    """Test count columns contain only non-negative integer values matching fixture expectations.
+        assert (normal_summary['operation_type'] == 'normal').all(), \
+            "All normal_summary rows should have operation_type='normal'"
     
-    Fixture: 336 total records (2 weeks hourly with seed=42)
-    - 17 incident records (INCIDENT_NUMBER at indices 0, 20, 40, ..., 320)
-    - 1 cancellation in incident operations
-    - 16 arrivals in incident operations
-    - 9 total cancellations (1 incident + 8 normal)
-    - 311 arrivals in normal operations (319 normal records - 8 cancellations)
-    - 319 total normal operation records
-    """
-    mock_exists.return_value = True
-    mock_read_parquet.return_value = station_view_sample_data
-    
-    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
-    incident_summary, normal_summary = result
-    
+    # ===== ASSERTION GROUP 5: Count columns are non-negative integers =====
     count_columns = ['ontime_arrival_count', 'delayed_arrival_count', 'cancellation_count']
     
-    # Verify data types across all summaries
     for summary, name in [(incident_summary, 'incident'), (normal_summary, 'normal')]:
         if len(summary) > 0:
             for col in count_columns:
-                assert summary[col].dtype in [int, np.int64], f"{name} {col} should be integer"
-                assert (summary[col] >= 0).all(), f"{name} {col} should be non-negative"
+                assert summary[col].dtype in [int, np.int64], \
+                    f"{name} {col} should be integer type"
+                assert (summary[col] >= 0).all(), \
+                    f"{name} {col} should contain only non-negative values"
     
-    # ===== INCIDENT OPERATIONS: Exactly 17 records =====
-    assert len(incident_summary) > 0
+    # ===== ASSERTION GROUP 6: Exact fixture value assertions =====
+    # INCIDENT OPERATIONS: Exactly 17 records
+    assert len(incident_summary) > 0, "incident_summary should not be empty"
     incident_total_arrivals = incident_summary['ontime_arrival_count'].sum() + incident_summary['delayed_arrival_count'].sum()
     incident_total_cancellations = incident_summary['cancellation_count'].sum()
     incident_total_records = incident_total_arrivals + incident_total_cancellations
@@ -2293,8 +2251,8 @@ def test_station_view_yearly_with_time_range_count_columns_are_non_negative_inte
     assert incident_total_arrivals == 16, "Fixture: 16 arrivals in incident operations"
     assert incident_total_records == 17, "Fixture: 17 total incident records"
     
-    # ===== NORMAL OPERATIONS: Exactly 319 records (311 arrivals + 8 cancellations) =====
-    assert len(normal_summary) > 0
+    # NORMAL OPERATIONS: Exactly 319 records (311 arrivals + 8 cancellations)
+    assert len(normal_summary) > 0, "normal_summary should not be empty"
     normal_total_arrivals = normal_summary['ontime_arrival_count'].sum() + normal_summary['delayed_arrival_count'].sum()
     normal_total_cancellations = normal_summary['cancellation_count'].sum()
     normal_total_records = normal_total_arrivals + normal_total_cancellations
@@ -2303,127 +2261,70 @@ def test_station_view_yearly_with_time_range_count_columns_are_non_negative_inte
     assert normal_total_arrivals == 311, "Fixture: 311 arrivals in normal operations"
     assert normal_total_records == 319, "Fixture: 319 total normal records"
     
-    # ===== VERIFY TOTAL SPLIT: 336 = 17 incident + 319 normal =====
+    # TOTAL SPLIT: 336 = 17 incident + 319 normal
     total_all = incident_total_records + normal_total_records
     assert total_all == 336, f"Fixture total should be 336 records, got {total_all}"
-
-# TOREVIEW: hardcoded values based on fixtures
-
-@patch('os.path.exists')
-@patch('pandas.read_parquet')
-def test_station_view_yearly_with_time_range_delay_minutes_is_list_of_floats(mock_read_parquet, mock_exists, station_view_sample_data):
-    """Test delay_minutes contains lists of numeric values matching fixture expectations.
     
-    Fixture: 336 total records (2 weeks hourly with seed=42)
-    Fixture delay values:
-    - Incident operations: 16 arrivals with delays from fixture
-    - Normal operations: 311 arrivals with delays from fixture
-    - Max delay across all: 19.80 minutes
-    - Average delay across all: 6.63 minutes
-    """
-    mock_exists.return_value = True
-    mock_read_parquet.return_value = station_view_sample_data
-    
-    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
-    incident_summary, normal_summary = result
-    
-    # ===== INCIDENT OPERATIONS: delay_minutes validation =====
+    # ===== ASSERTION GROUP 7: Delay minutes validation =====
+    # INCIDENT OPERATIONS: delay_minutes
     if len(incident_summary) > 0:
-        assert 'delay_minutes' in incident_summary.columns
+        assert 'delay_minutes' in incident_summary.columns, "incident_summary missing delay_minutes column"
         
-        # Collect all incident delays
         all_incident_delays = []
         for i, delay_list in enumerate(incident_summary['delay_minutes']):
-            assert isinstance(delay_list, (list, np.ndarray)), f"Row {i}: delay_minutes should be list/array"
+            assert isinstance(delay_list, (list, np.ndarray)), \
+                f"Row {i}: delay_minutes should be list/array"
             if len(delay_list) > 0:
                 delay_array = np.array(delay_list, dtype=float)
                 all_incident_delays.extend(delay_array)
-                assert (delay_array >= 0).all(), f"Row {i}: all delays should be >= 0"
+                assert (delay_array >= 0).all(), \
+                    f"Row {i}: all delays should be >= 0"
         
-        # Verify total incident delays matches fixture (16 arrivals)
-        assert len(all_incident_delays) <= 16, f"Incident: expected <= 16 delays, got {len(all_incident_delays)}"
-        # Max delay should not exceed fixture max (19.80)
+        assert len(all_incident_delays) <= 16, \
+            f"Incident: expected <= 16 delays, got {len(all_incident_delays)}"
         if len(all_incident_delays) > 0:
-            assert max(all_incident_delays) <= 19.80, f"Incident: max delay {max(all_incident_delays):.2f} exceeds fixture max 19.80"
+            assert max(all_incident_delays) <= 19.80, \
+                f"Incident: max delay {max(all_incident_delays):.2f} exceeds fixture max 19.80"
     
-    # ===== NORMAL OPERATIONS: delay_minutes validation =====
+    # NORMAL OPERATIONS: delay_minutes
     if len(normal_summary) > 0:
-        assert 'delay_minutes' in normal_summary.columns
+        assert 'delay_minutes' in normal_summary.columns, "normal_summary missing delay_minutes column"
         
-        # Collect all normal delays
         all_normal_delays = []
         for i, delay_list in enumerate(normal_summary['delay_minutes']):
-            assert isinstance(delay_list, (list, np.ndarray)), f"Row {i}: delay_minutes should be list/array"
+            assert isinstance(delay_list, (list, np.ndarray)), \
+                f"Row {i}: delay_minutes should be list/array"
             if len(delay_list) > 0:
                 delay_array = np.array(delay_list, dtype=float)
                 all_normal_delays.extend(delay_array)
-                assert (delay_array >= 0).all(), f"Row {i}: all delays should be >= 0"
+                assert (delay_array >= 0).all(), \
+                    f"Row {i}: all delays should be >= 0"
         
-        # Verify total normal delays matches fixture (311 arrivals)
-        assert len(all_normal_delays) == 311, f"Normal: expected 311 delays, got {len(all_normal_delays)}"
+        assert len(all_normal_delays) == 311, \
+            f"Normal: expected 311 delays, got {len(all_normal_delays)}"
         
-        # Verify fixture delay statistics
-        assert max(all_normal_delays) == round(19.80, 2), f"Normal: max delay {max(all_normal_delays):.2f} should be 19.80"
+        assert max(all_normal_delays) == round(19.80, 2), \
+            f"Normal: max delay {max(all_normal_delays):.2f} should be 19.80"
         assert round(sum(all_normal_delays) / len(all_normal_delays), 2) == 6.63, \
             f"Normal: average delay {round(sum(all_normal_delays) / len(all_normal_delays), 2):.2f} should be 6.63"
-
-
-@patch('os.path.exists')
-@patch('pandas.read_parquet')
-def test_station_view_yearly_with_time_range_time_period_format_is_hhmm_hhmm(mock_read_parquet, mock_exists, station_view_sample_data):
-    """Test time_period values follow HH:MM-HH:MM format."""
-    mock_exists.return_value = True
-    mock_read_parquet.return_value = station_view_sample_data
     
-    result = station_view_yearly_with_time_range(station_id='32000', interval_minutes=60, time_range=None)
-    incident_summary, normal_summary = result
+    # ===== ASSERTION GROUP 8: Time period format validation =====
+    import re
     
     def is_valid_time_period(tp):
-        import re
         return bool(re.match(r'^\d{2}:\d{2}-\d{2}:\d{2}$', tp))
     
     if len(incident_summary) > 0:
-        assert all(is_valid_time_period(tp) for tp in incident_summary['time_period'])
+        assert all(is_valid_time_period(tp) for tp in incident_summary['time_period']), \
+            "All incident_summary time_period values should match HH:MM-HH:MM format"
     
     if len(normal_summary) > 0:
-        assert all(is_valid_time_period(tp) for tp in normal_summary['time_period'])
+        assert all(is_valid_time_period(tp) for tp in normal_summary['time_period']), \
+            "All normal_summary time_period values should match HH:MM-HH:MM format"
 
 
 
 # TESTS FOR station_analysis_with_time_range
-
-
-@patch('matplotlib.pyplot.show')
-@patch('matplotlib.pyplot.subplots')
-def test_station_analysis_with_time_range_has_all_analysis_keys(mock_subplots, mock_plt_show, station_view_sample_data):
-    """Test station_analysis_with_time_range result contains all three analysis components."""
-    mock_fig = MagicMock()
-    mock_ax = MagicMock()
-    mock_subplots.return_value = (mock_fig, mock_ax)
-    
-    result = station_analysis_with_time_range(
-        station_id='32000',
-        all_data=station_view_sample_data,
-        time_range=None
-    )
-
-    station_analysis = result['station_view_analysis']
-
-    # Verify station_view_analysis is a dictionary
-    assert isinstance(station_analysis, dict)
-
-    # Contains keys for all three analyses
-    assert 'delay_analysis' in result
-    assert 'outlier_analysis' in result
-    assert 'station_view_analysis' in result
-
-    # Test station_view_analysis contains hourly_stats and bin_stats DataFrames
-    assert 'hourly_stats' in station_analysis
-    assert 'bin_stats' in station_analysis
-
-
-# TOREVIEW: one function call and many assertions!
-
 
 @patch('matplotlib.pyplot.show')
 @patch('matplotlib.pyplot.subplots')
