@@ -116,8 +116,7 @@ Next Steps
 
 After preprocessing completes:
 
-1. Use ``load_processed_data()`` from the outputs module to load your data
+1. Run the demos in the ``demo/`` folder for different analytical perspectives
 2. Explore the data using the analysis tools
-3. Run the demos in the ``demo/`` folder for different analytical perspectives
 
 See the :doc:`api` for detailed API documentation.
