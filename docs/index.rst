@@ -79,10 +79,11 @@ This project is licensed under the MIT License. See the LICENSE file for details
    :caption: Documentation:
 
    getting_started
+   user_guide
    api
+   demo_workflow
    how_to_contribute
    contributors
-   demo_workflow
    troubleshooting
 
 Indices and tables
