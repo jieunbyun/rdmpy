@@ -15,39 +15,6 @@ We accept several types of contributions:
 * **Analysis & Examples**: New Jupyter notebooks, use cases, visualizations, research insights
 * **Data preprocessing enhancements**: Improvements to the preprocessor module for better data quality
 
-Getting Started
----------------
-
-1. **Fork the repository** on GitHub
-2. **Clone your fork locally**:
-
-   .. code-block:: bash
-
-      git clone https://github.com/your-username/rdmpy.git
-      cd rdmpy
-
-3. **Create a new branch** for your contribution:
-
-   .. code-block:: bash
-
-      git checkout -b feature/your-feature-name
-
-4. **Install the project in development mode**:
-
-   .. code-block:: bash
-
-      pip install -e .
-
-5. **Make your changes** and test them locally
-
-6. **Commit with a clear message**:
-
-   .. code-block:: bash
-
-      git commit -m "Add description of your changes"
-
-7. **Push to your fork and submit a Pull Request**
-
 Code Guidelines
 ---------------
 
@@ -56,40 +23,6 @@ Code Guidelines
 * Include unit tests for new features
 * Update documentation when adding new functionality
 * Keep commits focused and descriptive
-
-Setting Up Your Environment
-----------------------------
-
-To set up a development environment:
-
-.. code-block:: bash
-
-   # Install dependencies
-   pip install -r requirements.txt
-   
-   # For documentation development
-   pip install -r docs/requirements.txt
-   
-   # For testing
-   pip install pytest
-
-Running Tests
--------------
-
-.. code-block:: bash
-
-   pytest tests/
-
-Building Documentation Locally
--------------------------------
-
-.. code-block:: bash
-
-   cd docs
-   make clean
-   make html
-
-Open ``docs/_build/html/index.html`` to view the built documentation.
 
 Data Contribution Guidelines
 -----------------------------

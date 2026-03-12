@@ -45,8 +45,9 @@ Key Features
 * **Delay Propagation Tracking**: Understand how incidents ripple across the network
 * **Open & Extensible**: Built for integration with new data sources and analysis methods
 
-Quick Start
+Summary Workflow
 ~~~~~~~~~~~
+Please read all the files contained in the ``docs/`` folder for detailed instructions on how to set up and use the toolkit. The general workflow is as follows:
 
 1. **Install the toolkit**:
 
@@ -80,9 +81,9 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
    getting_started
    user_guide
+   how_to_contribute
    api
    demo_workflow
-   how_to_contribute
    contributors
    troubleshooting
 
