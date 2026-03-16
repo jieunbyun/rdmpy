@@ -20,6 +20,8 @@ Demo Specifications
 
 **Purpose:** Quantify the overall impact of a specific incident across the network.
 
+`View the interactive demo notebook on GitHub <https://github.com/martazarantonello/rdmpy/blob/main/demo/aggregate_view.ipynb>`_
+
 **Analytical Focus:**
    - System-level incident impact assessment
    - Total delay minutes across all affected stations
@@ -55,6 +57,8 @@ Demo Specifications
 ~~~~~~~~~~~~~~~~
 
 **Purpose:** Detailed spatial and temporal analysis of delay propagation during a specific incident.
+
+`View the interactive demo notebook on GitHub <https://github.com/martazarantonello/rdmpy/blob/main/demo/incident_view.ipynb>`_
 
 **Analytical Focus:**
    - Temporal progression of delays over time
@@ -99,6 +103,8 @@ Demo Specifications
 
 **Purpose:** Network-wide analysis showing aggregate impacts across all incidents on a specific date.
 
+`View the interactive demo notebook on GitHub <https://github.com/martazarantonello/rdmpy/blob/main/demo/time_view.ipynb>`_
+
 **Analytical Focus:**
    - Multi-incident day analysis
    - Network-wide delay distribution
@@ -132,6 +138,8 @@ Demo Specifications
 ~~~~~~~~~~~~~
 
 **Purpose:** Analyze individual train service journeys and reliability metrics.
+
+`View the interactive demo notebook on GitHub <https://github.com/martazarantonello/rdmpy/blob/main/demo/train_view.ipynb>`_
 
 **Analytical Focus:**
    - Specific train journey tracking
@@ -180,6 +188,8 @@ Demo Specifications
 ~~~~~~~~~~~~~~~
 
 **Purpose:** Assess operational performance of a specific railway station under different conditions.
+
+`View the interactive demo notebook on GitHub <https://github.com/martazarantonello/rdmpy/blob/main/demo/station_view.ipynb>`_
 
 **Analytical Focus:**
    - Single-station performance assessment
