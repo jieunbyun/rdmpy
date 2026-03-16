@@ -81,11 +81,11 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
    getting_started
    user_guide
-   how_to_contribute
-   api
    demo_workflow
-   contributors
    troubleshooting
+   api
+   contributors
+   how_to_contribute
 
 Indices and tables
 ==================
