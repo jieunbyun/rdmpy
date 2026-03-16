@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_e51ff37194d332b9b3a1f7f88cadfd61 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+</head>
+<body>
+    
+    <div style='position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index:9999; font-size:18px; background: white; border:2px solid grey; border-radius:8px; padding: 10px;'><b>Train Service: 21700001</b><br><b>Date: 07-DEC-2024</b></div>
+    
+     <div style="position: fixed; bottom: 50px; left: 50px; width: 300px; height: auto; max-height: 400px; z-index:9999; font-size:13px; background: white; border:2px solid grey; border-radius:8px; padding: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+     <b style="font-size: 15px;">Delay Intensity Key</b><br>
+     <div style="margin: 8px 0;">
+     <i class="fa fa-circle" style="color:blue"></i> 0 min (No delay)<br>
+     <i class="fa fa-circle" style="color:#32CD32"></i> 1-5 min (Minor)<br>
+     <i class="fa fa-circle" style="color:#FFD700"></i> 6-15 min (Moderate)<br>
+     <i class="fa fa-circle" style="color:#FF8C00"></i> 16-30 min (Significant)<br>
+     <i class="fa fa-circle" style="color:#FF0000"></i> 31-60 min (Major)<br>
+     <i class="fa fa-circle" style="color:#8B0000"></i> 61-120 min (Severe)<br>
+     <i class="fa fa-circle" style="color:#8A2BE2"></i> 120+ min (Critical)
+     </div>
+     <b style="font-size: 14px;">Route Connections:</b><br>
+     <div style="margin-top: 6px; line-height: 1.4;">
+     Blue lines connect stations by <b>geographic proximity</b> using minimum spanning tree algorithm.<br><br>
+     Purple numbered circles show incidents (1 = earliest).<br>
+     Track section incidents shown as purple lines.
+     </div>
+     </div>
+     
+    
+            <div class="folium-map" id="map_e51ff37194d332b9b3a1f7f88cadfd61" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_e51ff37194d332b9b3a1f7f88cadfd61 = L.map(
+                "map_e51ff37194d332b9b3a1f7f88cadfd61",
+                {
+                    center: [53.03066127307692, -0.7214099535384615],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 8,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_c78f7e351e34d77d2fa5f8cf172b2528 = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 20,
+  "maxNativeZoom": 20,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\"https://carto.com/attributions\"\u003eCARTO\u003c/a\u003e",
+  "subdomains": "abcd",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_c78f7e351e34d77d2fa5f8cf172b2528.addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+            var poly_line_4ff65e97a0983f42af39a8d0df63dc9b = L.polyline(
+                [[54.77939123, -1.581752098], [54.52044297, -1.545779184]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_770b13a44a7064cc104bc7d92cf20c08 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_955ecdcf2c6cec8550f2c5d56ca4802f = $(`<div id="html_955ecdcf2c6cec8550f2c5d56ca4802f" style="width: 100.0%; height: 100.0%;">Connection: Durham ↔ Darlington</div>`)[0];
+                popup_770b13a44a7064cc104bc7d92cf20c08.setContent(html_955ecdcf2c6cec8550f2c5d56ca4802f);
+            
+        
+
+        poly_line_4ff65e97a0983f42af39a8d0df63dc9b.bindPopup(popup_770b13a44a7064cc104bc7d92cf20c08)
+        ;
+
+        
+    
+    
+            var poly_line_fc8d3f04b5904955a8b01716d3adefd4 = L.polyline(
+                [[54.77939123, -1.581752098], [54.96822307, -1.61728169]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_8301b40f2d9d82134fe86d574344d022 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_0e492df918343505a5dd15c107c5d598 = $(`<div id="html_0e492df918343505a5dd15c107c5d598" style="width: 100.0%; height: 100.0%;">Connection: Durham ↔ Newcastle</div>`)[0];
+                popup_8301b40f2d9d82134fe86d574344d022.setContent(html_0e492df918343505a5dd15c107c5d598);
+            
+        
+
+        poly_line_fc8d3f04b5904955a8b01716d3adefd4.bindPopup(popup_8301b40f2d9d82134fe86d574344d022)
+        ;
+
+        
+    
+    
+            var poly_line_3c5088d35e70731fe7703771c6be0085 = L.polyline(
+                [[52.3286476, -0.192068055], [52.57497406, -0.249836973]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_8fbf8a880624896635669734a7220676 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_cc270da52b17ff5c34537551ddca7f86 = $(`<div id="html_cc270da52b17ff5c34537551ddca7f86" style="width: 100.0%; height: 100.0%;">Connection: Huntingdon ↔ Peterborough</div>`)[0];
+                popup_8fbf8a880624896635669734a7220676.setContent(html_cc270da52b17ff5c34537551ddca7f86);
+            
+        
+
+        poly_line_3c5088d35e70731fe7703771c6be0085.bindPopup(popup_8fbf8a880624896635669734a7220676)
+        ;
+
+        
+    
+    
+            var poly_line_cfa10e600f4434579536422e4cae4327 = L.polyline(
+                [[52.3286476, -0.192068055], [51.95296135, -0.262518185]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_98a540f5b8ec6c3708f7fb938280c6d1 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_9959f4b36c0ee65b332b38fda604532b = $(`<div id="html_9959f4b36c0ee65b332b38fda604532b" style="width: 100.0%; height: 100.0%;">Connection: Huntingdon ↔ Hitchin</div>`)[0];
+                popup_98a540f5b8ec6c3708f7fb938280c6d1.setContent(html_9959f4b36c0ee65b332b38fda604532b);
+            
+        
+
+        poly_line_cfa10e600f4434579536422e4cae4327.bindPopup(popup_98a540f5b8ec6c3708f7fb938280c6d1)
+        ;
+
+        
+    
+    
+            var poly_line_542772176307677e48af63a229d21d11 = L.polyline(
+                [[53.31500412, -0.949253722], [53.08166593, -0.799677998]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_642b95bcf48d14ed797bf46b2ec2662d = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_0ba1ee45575ec051f12ad04ff2e2a0b5 = $(`<div id="html_0ba1ee45575ec051f12ad04ff2e2a0b5" style="width: 100.0%; height: 100.0%;">Connection: Retford ↔ Newark North Gate</div>`)[0];
+                popup_642b95bcf48d14ed797bf46b2ec2662d.setContent(html_0ba1ee45575ec051f12ad04ff2e2a0b5);
+            
+        
+
+        poly_line_542772176307677e48af63a229d21d11.bindPopup(popup_642b95bcf48d14ed797bf46b2ec2662d)
+        ;
+
+        
+    
+    
+            var poly_line_05f86da40507a73b1eb7610e137c1700 = L.polyline(
+                [[53.31500412, -0.949253722], [53.95796604, -1.0931822]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_402bfbe6ab28033aba6b6bb9bacd0edb = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_15c1ea4fa8d66455145cfec5ed6f8c74 = $(`<div id="html_15c1ea4fa8d66455145cfec5ed6f8c74" style="width: 100.0%; height: 100.0%;">Connection: Retford ↔ York</div>`)[0];
+                popup_402bfbe6ab28033aba6b6bb9bacd0edb.setContent(html_15c1ea4fa8d66455145cfec5ed6f8c74);
+            
+        
+
+        poly_line_05f86da40507a73b1eb7610e137c1700.bindPopup(popup_402bfbe6ab28033aba6b6bb9bacd0edb)
+        ;
+
+        
+    
+    
+            var poly_line_db4238f6d8c84c35575b5ea8d9b723a8 = L.polyline(
+                [[51.56475245, -0.104217355], [51.91537678, -0.214532286]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_3202fe4b0680bd6ae4b58198320ffdac = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_c0061d4a4a53b9bda121229d56e1cf5d = $(`<div id="html_c0061d4a4a53b9bda121229d56e1cf5d" style="width: 100.0%; height: 100.0%;">Connection: Finsbury Park London ↔ Stevenage</div>`)[0];
+                popup_3202fe4b0680bd6ae4b58198320ffdac.setContent(html_c0061d4a4a53b9bda121229d56e1cf5d);
+            
+        
+
+        poly_line_db4238f6d8c84c35575b5ea8d9b723a8.bindPopup(popup_3202fe4b0680bd6ae4b58198320ffdac)
+        ;
+
+        
+    
+    
+            var poly_line_bfde7a73bb4508afb693ddfeeaeea218 = L.polyline(
+                [[51.56475245, -0.104217355], [51.5327022, -0.124292928]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_3cdcc0e5a9de81e1cd2774e17cd199a5 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_34a93f346ae527e51d7993ea96afdfb3 = $(`<div id="html_34a93f346ae527e51d7993ea96afdfb3" style="width: 100.0%; height: 100.0%;">Connection: Finsbury Park London ↔ King's Cross London</div>`)[0];
+                popup_3cdcc0e5a9de81e1cd2774e17cd199a5.setContent(html_34a93f346ae527e51d7993ea96afdfb3);
+            
+        
+
+        poly_line_bfde7a73bb4508afb693ddfeeaeea218.bindPopup(popup_3cdcc0e5a9de81e1cd2774e17cd199a5)
+        ;
+
+        
+    
+    
+            var poly_line_4c950b599ab4aa011eba4807da1bd60d = L.polyline(
+                [[52.57497406, -0.249836973], [52.90648875, -0.643936722]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_566de05af466b55084f5c208fee85593 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_0d7cd043f06be857e566a0ba96d668d8 = $(`<div id="html_0d7cd043f06be857e566a0ba96d668d8" style="width: 100.0%; height: 100.0%;">Connection: Peterborough ↔ Grantham</div>`)[0];
+                popup_566de05af466b55084f5c208fee85593.setContent(html_0d7cd043f06be857e566a0ba96d668d8);
+            
+        
+
+        poly_line_4c950b599ab4aa011eba4807da1bd60d.bindPopup(popup_566de05af466b55084f5c208fee85593)
+        ;
+
+        
+    
+    
+            var poly_line_852d8b1f191fd01aa914b56bce1790de = L.polyline(
+                [[51.91537678, -0.214532286], [51.95296135, -0.262518185]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_9f650a39419777f6d4030b3fb9559120 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_2b6ef078e470596ac1385d4749b97f84 = $(`<div id="html_2b6ef078e470596ac1385d4749b97f84" style="width: 100.0%; height: 100.0%;">Connection: Stevenage ↔ Hitchin</div>`)[0];
+                popup_9f650a39419777f6d4030b3fb9559120.setContent(html_2b6ef078e470596ac1385d4749b97f84);
+            
+        
+
+        poly_line_852d8b1f191fd01aa914b56bce1790de.bindPopup(popup_9f650a39419777f6d4030b3fb9559120)
+        ;
+
+        
+    
+    
+            var poly_line_267b224f049e08b2046dc2954faf56bb = L.polyline(
+                [[54.52044297, -1.545779184], [53.95796604, -1.0931822]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_0bedb14c3fc02904d9a91558a15508d2 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_2051e16b30fb0a8c17654fbda96c37a5 = $(`<div id="html_2051e16b30fb0a8c17654fbda96c37a5" style="width: 100.0%; height: 100.0%;">Connection: Darlington ↔ York</div>`)[0];
+                popup_0bedb14c3fc02904d9a91558a15508d2.setContent(html_2051e16b30fb0a8c17654fbda96c37a5);
+            
+        
+
+        poly_line_267b224f049e08b2046dc2954faf56bb.bindPopup(popup_0bedb14c3fc02904d9a91558a15508d2)
+        ;
+
+        
+    
+    
+            var poly_line_5e24c04e31a598203483a7e66aa41814 = L.polyline(
+                [[52.90648875, -0.643936722], [53.08166593, -0.799677998]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_809fcf14fb276abaeebec0e39745a6d1 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_b8ac8dba079fb84a01a084cb3b0099a1 = $(`<div id="html_b8ac8dba079fb84a01a084cb3b0099a1" style="width: 100.0%; height: 100.0%;">Connection: Grantham ↔ Newark North Gate</div>`)[0];
+                popup_809fcf14fb276abaeebec0e39745a6d1.setContent(html_b8ac8dba079fb84a01a084cb3b0099a1);
+            
+        
+
+        poly_line_5e24c04e31a598203483a7e66aa41814.bindPopup(popup_809fcf14fb276abaeebec0e39745a6d1)
+        ;
+
+        
+    
+    
+            var circle_marker_25be3da4f24743ab5dafef94d9c3e910 = L.circleMarker(
+                [54.77939123, -1.581752098],
+                {"bubblingMouseEvents": true, "color": "#FFD700", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#FFD700", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_ded58a18021981b5c60b818111734377 = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_7c4c9601cd4f7eac64f0bd2acc3994f3 = $(`<div id="html_7c4c9601cd4f7eac64f0bd2acc3994f3" style="width: 100.0%; height: 100.0%;"><b>Durham</b><br>STANOX: 13702<br>Total delay: 8.0 min<br><b>Incidents (by index):</b> 3, 2</div>`)[0];
+                popup_ded58a18021981b5c60b818111734377.setContent(html_7c4c9601cd4f7eac64f0bd2acc3994f3);
+            
+        
+
+        circle_marker_25be3da4f24743ab5dafef94d9c3e910.bindPopup(popup_ded58a18021981b5c60b818111734377)
+        ;
+
+        
+    
+    
+            var circle_marker_0b732ed9665038a53f21e866bfa5fb9d = L.circleMarker(
+                [52.3286476, -0.192068055],
+                {"bubblingMouseEvents": true, "color": "#FFD700", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#FFD700", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_90d9f1f21a00bd578f8a401af9c23305 = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_0b0839df7dc97bd2559cf3a3eda3e9e8 = $(`<div id="html_0b0839df7dc97bd2559cf3a3eda3e9e8" style="width: 100.0%; height: 100.0%;"><b>Huntingdon</b><br>STANOX: 45201<br>Total delay: 9.0 min<br><b>Incidents (by index):</b> 6</div>`)[0];
+                popup_90d9f1f21a00bd578f8a401af9c23305.setContent(html_0b0839df7dc97bd2559cf3a3eda3e9e8);
+            
+        
+
+        circle_marker_0b732ed9665038a53f21e866bfa5fb9d.bindPopup(popup_90d9f1f21a00bd578f8a401af9c23305)
+        ;
+
+        
+    
+    
+            var circle_marker_3abf429172bc6e63f5e0260332d9352b = L.circleMarker(
+                [53.31500412, -0.949253722],
+                {"bubblingMouseEvents": true, "color": "#FFD700", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#FFD700", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_c2ad19fa543f12cb6650d95702ce31ef = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_14fe00af93f9e97fe22770c1120d27fa = $(`<div id="html_14fe00af93f9e97fe22770c1120d27fa" style="width: 100.0%; height: 100.0%;"><b>Retford</b><br>STANOX: 23491<br>Total delay: 8.0 min<br><b>Incidents (by index):</b> 10</div>`)[0];
+                popup_c2ad19fa543f12cb6650d95702ce31ef.setContent(html_14fe00af93f9e97fe22770c1120d27fa);
+            
+        
+
+        circle_marker_3abf429172bc6e63f5e0260332d9352b.bindPopup(popup_c2ad19fa543f12cb6650d95702ce31ef)
+        ;
+
+        
+    
+    
+            var circle_marker_8c3d70382c27de6c0bd21dc5b9f7c548 = L.circleMarker(
+                [51.56475245, -0.104217355],
+                {"bubblingMouseEvents": true, "color": "#32CD32", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#32CD32", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_ad78670f667bef76d7a3e9c6d960fa06 = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_a74ef36745ab529f015c57b7867d6937 = $(`<div id="html_a74ef36745ab529f015c57b7867d6937" style="width: 100.0%; height: 100.0%;"><b>Finsbury Park London</b><br>STANOX: 54238<br>Total delay: 3.0 min<br><b>Incidents (by index):</b> 8</div>`)[0];
+                popup_ad78670f667bef76d7a3e9c6d960fa06.setContent(html_a74ef36745ab529f015c57b7867d6937);
+            
+        
+
+        circle_marker_8c3d70382c27de6c0bd21dc5b9f7c548.bindPopup(popup_ad78670f667bef76d7a3e9c6d960fa06)
+        ;
+
+        
+    
+    
+            var circle_marker_e8b6fe5ee7f673169c5132d78fff4901 = L.circleMarker(
+                [52.57497406, -0.249836973],
+                {"bubblingMouseEvents": true, "color": "#FF8C00", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#FF8C00", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_307ddeec633793fd45d9e30248396b78 = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_d03f804f830d51fea0116b6c0d75132d = $(`<div id="html_d03f804f830d51fea0116b6c0d75132d" style="width: 100.0%; height: 100.0%;"><b>Peterborough</b><br>STANOX: 45106<br>Total delay: 24.0 min<br><b>Incidents (by index):</b> 6, 2, 10</div>`)[0];
+                popup_307ddeec633793fd45d9e30248396b78.setContent(html_d03f804f830d51fea0116b6c0d75132d);
+            
+        
+
+        circle_marker_e8b6fe5ee7f673169c5132d78fff4901.bindPopup(popup_307ddeec633793fd45d9e30248396b78)
+        ;
+
+        
+    
+    
+            var circle_marker_b74ce6fe39819782e06607b41daee3b2 = L.circleMarker(
+                [51.91537678, -0.214532286],
+                {"bubblingMouseEvents": true, "color": "#32CD32", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#32CD32", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_20c01cf050ba4ef23686620d7bdaf340 = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_542bcd45e8e1c830b76848e482cfebdc = $(`<div id="html_542bcd45e8e1c830b76848e482cfebdc" style="width: 100.0%; height: 100.0%;"><b>Stevenage</b><br>STANOX: 53223<br>Total delay: 4.0 min<br><b>Incidents (by index):</b> 1</div>`)[0];
+                popup_20c01cf050ba4ef23686620d7bdaf340.setContent(html_542bcd45e8e1c830b76848e482cfebdc);
+            
+        
+
+        circle_marker_b74ce6fe39819782e06607b41daee3b2.bindPopup(popup_20c01cf050ba4ef23686620d7bdaf340)
+        ;
+
+        
+    
+    
+            var circle_marker_85e23d2d1f4e6f19de4b2f25eb6a951e = L.circleMarker(
+                [54.52044297, -1.545779184],
+                {"bubblingMouseEvents": true, "color": "#FFD700", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#FFD700", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_8145a4c78c2177ef22336e82cfdbd254 = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_0e7310785f0f37b67d7d4d416cee07d0 = $(`<div id="html_0e7310785f0f37b67d7d4d416cee07d0" style="width: 100.0%; height: 100.0%;"><b>Darlington</b><br>STANOX: 15866<br>Total delay: 7.0 min<br><b>Incidents (by index):</b> 2</div>`)[0];
+                popup_8145a4c78c2177ef22336e82cfdbd254.setContent(html_0e7310785f0f37b67d7d4d416cee07d0);
+            
+        
+
+        circle_marker_85e23d2d1f4e6f19de4b2f25eb6a951e.bindPopup(popup_8145a4c78c2177ef22336e82cfdbd254)
+        ;
+
+        
+    
+    
+            var circle_marker_bd69eb4c61790963e1702d29623520e1 = L.circleMarker(
+                [51.5327022, -0.124292928],
+                {"bubblingMouseEvents": true, "color": "#8A2BE2", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#8A2BE2", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_99a6b8ffc45077dc3dac8ea1d3e3fb8d = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_784ac369bb62bd09060d01491938ee7a = $(`<div id="html_784ac369bb62bd09060d01491938ee7a" style="width: 100.0%; height: 100.0%;"><b>King's Cross London</b><br>STANOX: 54311<br>Total delay: 153.0 min<br><b>Incidents (by index):</b> 5, 9, 7</div>`)[0];
+                popup_99a6b8ffc45077dc3dac8ea1d3e3fb8d.setContent(html_784ac369bb62bd09060d01491938ee7a);
+            
+        
+
+        circle_marker_bd69eb4c61790963e1702d29623520e1.bindPopup(popup_99a6b8ffc45077dc3dac8ea1d3e3fb8d)
+        ;
+
+        
+    
+    
+            var circle_marker_99f750a3c1c1669bb440b39528854356 = L.circleMarker(
+                [52.90648875, -0.643936722],
+                {"bubblingMouseEvents": true, "color": "#FFD700", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#FFD700", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_aeee03bb3a9588f2f9e3a4324b6bd0cc = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_51e164230c026aeb3733ea38786550ef = $(`<div id="html_51e164230c026aeb3733ea38786550ef" style="width: 100.0%; height: 100.0%;"><b>Grantham</b><br>STANOX: 44421<br>Total delay: 8.0 min<br><b>Incidents (by index):</b> 6</div>`)[0];
+                popup_aeee03bb3a9588f2f9e3a4324b6bd0cc.setContent(html_51e164230c026aeb3733ea38786550ef);
+            
+        
+
+        circle_marker_99f750a3c1c1669bb440b39528854356.bindPopup(popup_aeee03bb3a9588f2f9e3a4324b6bd0cc)
+        ;
+
+        
+    
+    
+            var circle_marker_0879fbf13227431e5995dc7295a0e797 = L.circleMarker(
+                [51.95296135, -0.262518185],
+                {"bubblingMouseEvents": true, "color": "#FFD700", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#FFD700", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_3d89d6328c36d9a191ee001af9c528ad = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_f45d6a3424a36c2139826a863a8d4568 = $(`<div id="html_f45d6a3424a36c2139826a863a8d4568" style="width: 100.0%; height: 100.0%;"><b>Hitchin</b><br>STANOX: 53221<br>Total delay: 10.0 min<br><b>Incidents (by index):</b> 1, 6</div>`)[0];
+                popup_3d89d6328c36d9a191ee001af9c528ad.setContent(html_f45d6a3424a36c2139826a863a8d4568);
+            
+        
+
+        circle_marker_0879fbf13227431e5995dc7295a0e797.bindPopup(popup_3d89d6328c36d9a191ee001af9c528ad)
+        ;
+
+        
+    
+    
+            var circle_marker_70c8d13d8a37edef2b920f727684c01c = L.circleMarker(
+                [53.08166593, -0.799677998],
+                {"bubblingMouseEvents": true, "color": "#FFD700", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#FFD700", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_4102364e40bd159a7590d33ea55fa3f5 = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_a87a4c9dab088b13df7c11e21650ae5a = $(`<div id="html_a87a4c9dab088b13df7c11e21650ae5a" style="width: 100.0%; height: 100.0%;"><b>Newark North Gate</b><br>STANOX: 44304<br>Total delay: 13.0 min<br><b>Incidents (by index):</b> 6, 10</div>`)[0];
+                popup_4102364e40bd159a7590d33ea55fa3f5.setContent(html_a87a4c9dab088b13df7c11e21650ae5a);
+            
+        
+
+        circle_marker_70c8d13d8a37edef2b920f727684c01c.bindPopup(popup_4102364e40bd159a7590d33ea55fa3f5)
+        ;
+
+        
+    
+    
+            var circle_marker_2aa77b990d7edb5dbd259e93b095e440 = L.circleMarker(
+                [53.95796604, -1.0931822],
+                {"bubblingMouseEvents": true, "color": "#FF0000", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#FF0000", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_23b3212468ee1c54e49e592a5729ec3f = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_cf86481b358d2eecedc38d056f494654 = $(`<div id="html_cf86481b358d2eecedc38d056f494654" style="width: 100.0%; height: 100.0%;"><b>York</b><br>STANOX: 16416<br>Total delay: 45.0 min<br><b>Incidents (by index):</b> 4, 2, 7</div>`)[0];
+                popup_23b3212468ee1c54e49e592a5729ec3f.setContent(html_cf86481b358d2eecedc38d056f494654);
+            
+        
+
+        circle_marker_2aa77b990d7edb5dbd259e93b095e440.bindPopup(popup_23b3212468ee1c54e49e592a5729ec3f)
+        ;
+
+        
+    
+    
+            var circle_marker_69cc970bd9119b62ae0d847ab582fc6c = L.circleMarker(
+                [54.96822307, -1.61728169],
+                {"bubblingMouseEvents": true, "color": "#FFD700", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#FFD700", "fillOpacity": 0.8, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_ef0ce110bd4f8a9da6296b7312c09f63 = L.popup({
+  "maxWidth": 400,
+});
+
+        
+            
+                var html_10df43fc17a3e29d29cc84246cdfb14c = $(`<div id="html_10df43fc17a3e29d29cc84246cdfb14c" style="width: 100.0%; height: 100.0%;"><b>Newcastle</b><br>STANOX: 12931<br>Total delay: 8.0 min<br><b>Incidents (by index):</b> 2</div>`)[0];
+                popup_ef0ce110bd4f8a9da6296b7312c09f63.setContent(html_10df43fc17a3e29d29cc84246cdfb14c);
+            
+        
+
+        circle_marker_69cc970bd9119b62ae0d847ab582fc6c.bindPopup(popup_ef0ce110bd4f8a9da6296b7312c09f63)
+        ;
+
+        
+    
+    
+            var poly_line_6cbd35f2b7c14955eba9a8c253309a29 = L.polyline(
+                [[54.77939123, -1.581752098], [54.67495093, -1.528550055]],
+                {"bubblingMouseEvents": true, "color": "purple", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "purple", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.9, "smoothFactor": 1.0, "stroke": true, "weight": 6}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_ee001cedc0619c9df997e05f2298caac = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_b9c3992fc59fd1ae57b3779580a40cb0 = $(`<div id="html_b9c3992fc59fd1ae57b3779580a40cb0" style="width: 100.0%; height: 100.0%;">Incident Section: Durham ↔ Ferryhill South Junction</div>`)[0];
+                popup_ee001cedc0619c9df997e05f2298caac.setContent(html_b9c3992fc59fd1ae57b3779580a40cb0);
+            
+        
+
+        poly_line_6cbd35f2b7c14955eba9a8c253309a29.bindPopup(popup_ee001cedc0619c9df997e05f2298caac)
+        ;
+
+        
+    
+    
+            var marker_bf470ce2412951b3d3a2811c43f574ba = L.marker(
+                [54.727171080000005, -1.5551510765],
+                {
+}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+            var div_icon_4eaca65bc4757ffa203881afd13dc5e1 = L.divIcon({
+  "html": "\u003cdiv style=\u0027background:purple;color:#fff;border-radius:50%;min-width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-weight:bold;border:2px solid #ffffff;padding:4px\u0027\u003e3\u003c/div\u003e",
+  "className": "empty",
+});
+        
+    
+        var popup_9ec006e3861990d4d0af49535da872ed = L.popup({
+  "maxWidth": 450,
+});
+
+        
+            
+                var html_d90c66bb07c01aa9104ae8928c4d64ba = $(`<div id="html_d90c66bb07c01aa9104ae8928c4d64ba" style="width: 100.0%; height: 100.0%;"><b>Track Section Incident</b><br>Between: Durham ↔ Ferryhill South Junction<br>Section: 13702:15120<br><br>Incident: 62645.0 — 2024-12-07 05:11:00 — Reason: OC — Duration: 0 days 00:00:00</div>`)[0];
+                popup_9ec006e3861990d4d0af49535da872ed.setContent(html_d90c66bb07c01aa9104ae8928c4d64ba);
+            
+        
+
+        marker_bf470ce2412951b3d3a2811c43f574ba.bindPopup(popup_9ec006e3861990d4d0af49535da872ed)
+        ;
+
+        
+    
+    
+                marker_bf470ce2412951b3d3a2811c43f574ba.setIcon(div_icon_4eaca65bc4757ffa203881afd13dc5e1);
+            
+    
+            var marker_33753d7383990ffdaf2b5a65c12ffb62 = L.marker(
+                [53.79566409, -1.548593312],
+                {
+}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+            var div_icon_4598a2495c44243b740a6dd20d8654c0 = L.divIcon({
+  "html": "\u003cdiv style=\u0027background:purple;color:#fff;border-radius:50%;min-width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-weight:bold;border:2px solid #ffffff;padding:4px\u0027\u003e4\u003c/div\u003e",
+  "className": "empty",
+});
+        
+    
+        var popup_3f9081a71791cdb8fd93644b0f830f70 = L.popup({
+  "maxWidth": 450,
+});
+
+        
+            
+                var html_335685782e16051e2ba75801732cc0eb = $(`<div id="html_335685782e16051e2ba75801732cc0eb" style="width: 100.0%; height: 100.0%;"><b>Station Incident</b><br>Leeds<br>STANOX: 17132<br><br>Incident: 62914.0 — 2024-12-07 05:26:00 — Reason: TH — Duration: 0 days 00:37:00</div>`)[0];
+                popup_3f9081a71791cdb8fd93644b0f830f70.setContent(html_335685782e16051e2ba75801732cc0eb);
+            
+        
+
+        marker_33753d7383990ffdaf2b5a65c12ffb62.bindPopup(popup_3f9081a71791cdb8fd93644b0f830f70)
+        ;
+
+        
+    
+    
+                marker_33753d7383990ffdaf2b5a65c12ffb62.setIcon(div_icon_4598a2495c44243b740a6dd20d8654c0);
+            
+    
+            var poly_line_9ecb2de4790d223e89b6c80fb6ab4762 = L.polyline(
+                [[55.77393456, -2.011132859], [55.60757438, -1.817434171]],
+                {"bubblingMouseEvents": true, "color": "purple", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "purple", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.9, "smoothFactor": 1.0, "stroke": true, "weight": 6}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_4b3afdcfb8ee15292eb713796350c784 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_4ce8e53714503a16ddf3c80904b462eb = $(`<div id="html_4ce8e53714503a16ddf3c80904b462eb" style="width: 100.0%; height: 100.0%;">Incident Section: Berwick-Upon-Tweed ↔ Belford</div>`)[0];
+                popup_4b3afdcfb8ee15292eb713796350c784.setContent(html_4ce8e53714503a16ddf3c80904b462eb);
+            
+        
+
+        poly_line_9ecb2de4790d223e89b6c80fb6ab4762.bindPopup(popup_4b3afdcfb8ee15292eb713796350c784)
+        ;
+
+        
+    
+    
+            var marker_7f3c120ab5f9424d2fb95d9346847a0e = L.marker(
+                [55.69075447, -1.914283515],
+                {
+}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+            var div_icon_7e83ceb2b6a3b20907e8017e0ead7a68 = L.divIcon({
+  "html": "\u003cdiv style=\u0027background:purple;color:#fff;border-radius:50%;min-width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-weight:bold;border:2px solid #ffffff;padding:4px\u0027\u003e7\u003c/div\u003e",
+  "className": "empty",
+});
+        
+    
+        var popup_80303e8fae6da10e6a44bdc43a4cc62a = L.popup({
+  "maxWidth": 450,
+});
+
+        
+            
+                var html_3ac22d9a184fc7a144b96e7fdfe4a165 = $(`<div id="html_3ac22d9a184fc7a144b96e7fdfe4a165" style="width: 100.0%; height: 100.0%;"><b>Track Section Incident</b><br>Between: Berwick-Upon-Tweed ↔ Belford<br>Section: 12001:12106<br><br>Incident: 64326.0 — 2024-12-07 08:23:00 — Reason: X4 — Duration: 1 days 06:05:00</div>`)[0];
+                popup_80303e8fae6da10e6a44bdc43a4cc62a.setContent(html_3ac22d9a184fc7a144b96e7fdfe4a165);
+            
+        
+
+        marker_7f3c120ab5f9424d2fb95d9346847a0e.bindPopup(popup_80303e8fae6da10e6a44bdc43a4cc62a)
+        ;
+
+        
+    
+    
+                marker_7f3c120ab5f9424d2fb95d9346847a0e.setIcon(div_icon_7e83ceb2b6a3b20907e8017e0ead7a68);
+            
+    
+            var poly_line_8ab9aba67e41a15f44ce57789a7947fd = L.polyline(
+                [[53.5842799, -1.123856762], [53.51058417, -1.125377067]],
+                {"bubblingMouseEvents": true, "color": "purple", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "purple", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.9, "smoothFactor": 1.0, "stroke": true, "weight": 6}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_f5eaef2b7c1a6493d0179d458c0e159a = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_a33d4a5c3e4dba4310f706bd02f23fb4 = $(`<div id="html_a33d4a5c3e4dba4310f706bd02f23fb4" style="width: 100.0%; height: 100.0%;">Incident Section: Shaftholme Jn ↔ Doncaster Sig D276</div>`)[0];
+                popup_f5eaef2b7c1a6493d0179d458c0e159a.setContent(html_a33d4a5c3e4dba4310f706bd02f23fb4);
+            
+        
+
+        poly_line_8ab9aba67e41a15f44ce57789a7947fd.bindPopup(popup_f5eaef2b7c1a6493d0179d458c0e159a)
+        ;
+
+        
+    
+    
+            var marker_1855a3d02cde06c576a014829991d785 = L.marker(
+                [53.547432035, -1.1246169145],
+                {
+}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+            var div_icon_b25d07d9eb6e6437bfc1d00799624651 = L.divIcon({
+  "html": "\u003cdiv style=\u0027background:purple;color:#fff;border-radius:50%;min-width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-weight:bold;border:2px solid #ffffff;padding:4px\u0027\u003e6,9\u003c/div\u003e",
+  "className": "empty",
+});
+        
+    
+        var popup_6b0e76fd5aa0869985b15f837da65968 = L.popup({
+  "maxWidth": 450,
+});
+
+        
+            
+                var html_d0bb0e46175fa52808c6ef064cea1bc6 = $(`<div id="html_d0bb0e46175fa52808c6ef064cea1bc6" style="width: 100.0%; height: 100.0%;"><b>Track Section Incident</b><br>Between: Shaftholme Jn ↔ Doncaster Sig D276<br>Section: 23221:23421<br><br>Incident: 62913.0 — 2024-12-07 06:45:00 — Reason: JL — Duration: 0 days 02:39:00<br>Incident: 64262.0 — 2024-12-07 16:30:00 — Reason: XK — Duration: 0 days 02:40:00</div>`)[0];
+                popup_6b0e76fd5aa0869985b15f837da65968.setContent(html_d0bb0e46175fa52808c6ef064cea1bc6);
+            
+        
+
+        marker_1855a3d02cde06c576a014829991d785.bindPopup(popup_6b0e76fd5aa0869985b15f837da65968)
+        ;
+
+        
+    
+    
+                marker_1855a3d02cde06c576a014829991d785.setIcon(div_icon_b25d07d9eb6e6437bfc1d00799624651);
+            
+    
+            var marker_8c455729af0e2a0435e6e84a0cbba08a = L.marker(
+                [52.390371380000005, 0.272402037],
+                {
+}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+            var div_icon_6a020d57452fd1eda335e2d97f499b3b = L.divIcon({
+  "html": "\u003cdiv style=\u0027background:purple;color:#fff;border-radius:50%;min-width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-weight:bold;border:2px solid #ffffff;padding:4px\u0027\u003e1\u003c/div\u003e",
+  "className": "empty",
+});
+        
+    
+        var popup_6935658b3b0e5bb469b7cf0c9c2a968f = L.popup({
+  "maxWidth": 450,
+});
+
+        
+            
+                var html_3ac6dd43980eed7b01ac16020d75e4bc = $(`<div id="html_3ac6dd43980eed7b01ac16020d75e4bc" style="width: 100.0%; height: 100.0%;"><b>Station Incident</b><br>Ely(Camb)<br>STANOX: 46273<br><br>Incident: 62637.0 — 2024-12-07 03:00:00 — Reason: X4 — Duration: 0 days 06:36:00</div>`)[0];
+                popup_6935658b3b0e5bb469b7cf0c9c2a968f.setContent(html_3ac6dd43980eed7b01ac16020d75e4bc);
+            
+        
+
+        marker_8c455729af0e2a0435e6e84a0cbba08a.bindPopup(popup_6935658b3b0e5bb469b7cf0c9c2a968f)
+        ;
+
+        
+    
+    
+                marker_8c455729af0e2a0435e6e84a0cbba08a.setIcon(div_icon_6a020d57452fd1eda335e2d97f499b3b);
+            
+    
+            var marker_685d40cb4b108b048086068bcf8cbdb7 = L.marker(
+                [53.958466040000005, -1.0926822],
+                {
+}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+            var div_icon_56b2696def1ffa1adbd84bd2b78cfeb2 = L.divIcon({
+  "html": "\u003cdiv style=\u0027background:purple;color:#fff;border-radius:50%;min-width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-weight:bold;border:2px solid #ffffff;padding:4px\u0027\u003e2\u003c/div\u003e",
+  "className": "empty",
+});
+        
+    
+        var popup_b6fa9993f3637d25f7a260e6fe43fadb = L.popup({
+  "maxWidth": 450,
+});
+
+        
+            
+                var html_473909a95c1a9eacface9e4a0aea4bca = $(`<div id="html_473909a95c1a9eacface9e4a0aea4bca" style="width: 100.0%; height: 100.0%;"><b>Station Incident</b><br>York<br>STANOX: 16416<br><br>Incident: 63426.0 — 2024-12-07 04:00:00 — Reason: OU — Duration: 0 days 20:07:00</div>`)[0];
+                popup_b6fa9993f3637d25f7a260e6fe43fadb.setContent(html_473909a95c1a9eacface9e4a0aea4bca);
+            
+        
+
+        marker_685d40cb4b108b048086068bcf8cbdb7.bindPopup(popup_b6fa9993f3637d25f7a260e6fe43fadb)
+        ;
+
+        
+    
+    
+                marker_685d40cb4b108b048086068bcf8cbdb7.setIcon(div_icon_56b2696def1ffa1adbd84bd2b78cfeb2);
+            
+    
+            var poly_line_6f9d80da6fb17f66c61ed8f578e32135 = L.polyline(
+                [[52.81516138, -0.492150297], [52.64474438, -0.339877969]],
+                {"bubblingMouseEvents": true, "color": "purple", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "purple", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.9, "smoothFactor": 1.0, "stroke": true, "weight": 6}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+        var popup_7cce4aebd24017eace60e21db7d1f512 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_6ac0e0365996412af66ad6c41afb2abc = $(`<div id="html_6ac0e0365996412af66ad6c41afb2abc" style="width: 100.0%; height: 100.0%;">Incident Section: Stoke Tunnel ↔ Tallington Junction</div>`)[0];
+                popup_7cce4aebd24017eace60e21db7d1f512.setContent(html_6ac0e0365996412af66ad6c41afb2abc);
+            
+        
+
+        poly_line_6f9d80da6fb17f66c61ed8f578e32135.bindPopup(popup_7cce4aebd24017eace60e21db7d1f512)
+        ;
+
+        
+    
+    
+            var marker_540d11520e8c3348bc916104e96f7d58 = L.marker(
+                [52.72995288, -0.416014133],
+                {
+}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+        
+    
+            var div_icon_93fd280e1a089702b08b262b709b5186 = L.divIcon({
+  "html": "\u003cdiv style=\u0027background:purple;color:#fff;border-radius:50%;min-width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-weight:bold;border:2px solid #ffffff;padding:4px\u0027\u003e10\u003c/div\u003e",
+  "className": "empty",
+});
+        
+    
+        var popup_46a941f93e8096e769254914e498b8fe = L.popup({
+  "maxWidth": 450,
+});
+
+        
+            
+                var html_d53166577e077c6ab4962d703be204a5 = $(`<div id="html_d53166577e077c6ab4962d703be204a5" style="width: 100.0%; height: 100.0%;"><b>Track Section Incident</b><br>Between: Stoke Tunnel ↔ Tallington Junction<br>Section: 44999:45002<br><br>Incident: 64595.0 — 2024-12-07 18:04:00 — Reason: MD — Duration: 0 days 04:48:00</div>`)[0];
+                popup_46a941f93e8096e769254914e498b8fe.setContent(html_d53166577e077c6ab4962d703be204a5);
+            
+        
+
+        marker_540d11520e8c3348bc916104e96f7d58.bindPopup(popup_46a941f93e8096e769254914e498b8fe)
+        ;
+
+        
+    
+    
+                marker_540d11520e8c3348bc916104e96f7d58.setIcon(div_icon_93fd280e1a089702b08b262b709b5186);
+            
+    
+            var layer_control_de140d1a698bfb71119cdfbe4ea334c1_layers = {
+                base_layers : {
+                    "cartodbpositron" : tile_layer_c78f7e351e34d77d2fa5f8cf172b2528,
+                },
+                overlays :  {
+                },
+            };
+            let layer_control_de140d1a698bfb71119cdfbe4ea334c1 = L.control.layers(
+                layer_control_de140d1a698bfb71119cdfbe4ea334c1_layers.base_layers,
+                layer_control_de140d1a698bfb71119cdfbe4ea334c1_layers.overlays,
+                {
+  "position": "topright",
+  "collapsed": true,
+  "autoZIndex": true,
+}
+            ).addTo(map_e51ff37194d332b9b3a1f7f88cadfd61);
+
+        
+</script>
+</html>
