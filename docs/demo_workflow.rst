@@ -51,6 +51,21 @@ Demo Specifications
 
 **Example Usage:** Analyze incident 499279 from 24-MAY-2024 to understand total network impact.
 
+.. code-block:: python
+
+   result1 = aggregate_view_multiday(499279, "24-MAY-2024")
+   print("\nSummary:")
+   if result1:
+       for key, value in result1.items():
+           print(f"  {key}: {value}")
+
+.. figure:: _static/demo_aggregate_view.png
+   :align: center
+   :alt: Aggregate View output for incident 499279
+
+   Aggregate View output: (a) total delay minutes per hour over the 24-hour timeline,
+   (b) delay severity distribution, and (c) individual delay and cancellation events.
+
 ---
 
 2. Incident View
@@ -96,6 +111,35 @@ Demo Specifications
 
 **Example Usage:** Analyze incident 64326 from 07-DEC-2024, starting at 09:00 for 30 minutes, to see spatial-temporal delay propagation.
 
+.. code-block:: python
+
+   # Generate animated network heatmap
+   incident_code = 62537
+   incident_date = '07-DEC-2024'
+   analysis_date = '07-DEC-2024'
+   analysis_hhmm = '0600'
+   period_minutes = 1440
+   interval_minutes = 60
+
+   output_file = (
+       f'heatmap_incident_{incident_code}'
+       f'_{analysis_date.replace("-", "_")}'
+       f'_{analysis_hhmm}_period{period_minutes}min'
+       f'_interval{interval_minutes}min.html'
+   )
+
+   heatmap_html = incident_view_heatmap_html(
+       incident_code=incident_code,
+       incident_date=incident_date,
+       analysis_date=analysis_date,
+       analysis_hhmm=analysis_hhmm,
+       period_minutes=period_minutes,
+       interval_minutes=interval_minutes,
+       output_file=output_file
+   )
+
+*Output: An interactive HTML heatmap file. Open in a browser to explore the spatial-temporal delay propagation.*
+
 ---
 
 3. Time View
@@ -131,6 +175,12 @@ Demo Specifications
    - ``create_time_view_html()`` - Generates interactive network visualization
 
 **Example Usage:** Visualize network delays on 28-APR-2024 to see the combined impact of all incidents that day.
+
+.. code-block:: python
+
+   create_time_view_html('28-APR-2024', all_data)
+
+*Output: An interactive HTML map with color-coded station markers. Open in a browser to explore network-wide delays.*
 
 ---
 
@@ -181,6 +231,23 @@ Demo Specifications
    - ``plot_reliability_graphs()`` - Statistical summaries
 
 **Example Usage:** Analyze a service from Manchester Piccadilly to London Euston on 21-OCT-2024 to see all incidents encountered and delays at each stop.
+
+.. code-block:: python
+
+   result_table = train_view_2(all_data, service_stanox, service_code)
+   plot_reliability_graphs(all_data, service_stanox, service_code)
+
+.. figure:: _static/demo_train_view_kde.png
+   :align: center
+   :alt: Train View delay distribution (KDE)
+
+   Delay distribution per station (overlapping KDEs, capped at 75 min) for service 21700001.
+
+.. figure:: _static/demo_train_view_cdf.png
+   :align: center
+   :alt: Train View cumulative delay distribution (CDF)
+
+   Cumulative delay distribution per station for service 21700001.
 
 ---
 
@@ -236,6 +303,25 @@ Demo Specifications
    - ``station_analysis_with_time_range()`` - Detailed comprehensive analysis
 
 **Example Usage:** Analyze Manchester Piccadilly (station 32000) with 14 platforms for September 2024 to understand performance during a specific month.
+
+.. code-block:: python
+
+   comprehensive_results_32000 = station_analysis_with_time_range(
+       station_id='32000',
+       all_data=all_data,
+       num_platforms=14,
+       dwell_time_minutes=5,
+       max_delay_percentile=98,
+       time_range=None  # Full dataset, no time filtering
+   )
+
+.. figure:: _static/demo_station_view_combined.png
+   :align: center
+   :alt: Station View comprehensive analysis for Manchester Piccadilly
+
+   Comprehensive station analysis for Manchester Piccadilly (STANOX 32000):
+   mean delay vs system load, delay percentiles, on-time performance,
+   on-time histogram, and cumulative distribution.
 
 ---
 
